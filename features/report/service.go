@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/ryuka-games/lokup/domain"
 )
@@ -133,6 +134,14 @@ func (s *Service) prepareTemplateData(r *domain.AnalysisResult) TemplateData {
 		healthBreakdown[i] = BreakdownItem{Label: b.Label, Points: b.Points, Detail: b.Detail}
 	}
 
+	// 日別コミットデータをグラフ用に変換
+	commitsByDay := make([]int, len(r.DailyCommits))
+	commitDayLabels := make([]string, len(r.DailyCommits))
+	for i, dc := range r.DailyCommits {
+		commitsByDay[i] = dc.Count
+		commitDayLabels[i] = formatDateWithWeekday(dc.Date) // "1/25(土)" 形式
+	}
+
 	return TemplateData{
 		Repository:          r.Repository.FullName(),
 		PeriodFrom:          r.Period.From.Format("2006-01-02"),
@@ -151,6 +160,8 @@ func (s *Service) prepareTemplateData(r *domain.AnalysisResult) TemplateData {
 		AvgLeadTime:         r.Metrics.AvgLeadTime,
 		Risks:               risks,
 		HasRisks:            len(risks) > 0,
+		CommitsByDay:        commitsByDay,
+		CommitDayLabels:     commitDayLabels,
 		GeneratedAt:         r.GeneratedAt.Format("2006-01-02 15:04:05"),
 	}
 }
@@ -174,4 +185,10 @@ func riskTypeToAction(rt domain.RiskType) string {
 		return action
 	}
 	return "💡 提案: 詳細を確認し、改善策を検討してください。"
+}
+
+// formatDateWithWeekday は日付を "1/25(土)" 形式でフォーマットする。
+func formatDateWithWeekday(t time.Time) string {
+	weekdays := []string{"日", "月", "火", "水", "木", "金", "土"}
+	return fmt.Sprintf("%d/%d(%s)", t.Month(), t.Day(), weekdays[t.Weekday()])
 }

@@ -351,6 +351,15 @@ const htmlTemplate = `<!DOCTYPE html>
                 <canvas id="scoreChart"></canvas>
             </div>
         </section>
+
+        <!-- Daily Commits Chart -->
+        <section class="section">
+            <h2>日別コミット推移</h2>
+            <p class="section-desc">分析期間中の日々のコミット数の推移です。週末や締切前の傾向が見えます。</p>
+            <div class="chart-container">
+                <canvas id="dailyCommitsChart"></canvas>
+            </div>
+        </section>
     </div>
 
     <footer>
@@ -387,6 +396,41 @@ const htmlTemplate = `<!DOCTYPE html>
                         max: 100,
                         ticks: {
                             stepSize: 20
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+
+        // Daily Commits Chart
+        new Chart(document.getElementById('dailyCommitsChart'), {
+            type: 'line',
+            data: {
+                labels: [{{range $i, $label := .CommitDayLabels}}{{if $i}}, {{end}}'{{$label}}'{{end}}],
+                datasets: [{
+                    label: 'コミット数',
+                    data: [{{range $i, $count := .CommitsByDay}}{{if $i}}, {{end}}{{$count}}{{end}}],
+                    borderColor: 'rgb(102, 126, 234)',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: 4,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1
                         }
                     }
                 },

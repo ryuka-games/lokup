@@ -21,13 +21,20 @@ func (d DateRange) Days() int {
 // AnalysisResult は分析結果を表す集約。
 // これが集約ルートであり、診断結果全体を束ねる。
 type AnalysisResult struct {
-	Repository      Repository // 対象リポジトリ
-	Period          DateRange  // 分析期間
-	EfficiencyScore Score      // 開発効率スコア（経営向け）
-	HealthScore     Score      // コード健全性スコア（技術向け）
-	Risks           []Risk     // 検出されたリスク
-	Metrics         Metrics    // 各種メトリクス
-	GeneratedAt     time.Time  // レポート生成日時
+	Repository      Repository    // 対象リポジトリ
+	Period          DateRange     // 分析期間
+	EfficiencyScore Score         // 開発効率スコア（経営向け）
+	HealthScore     Score         // コード健全性スコア（技術向け）
+	Risks           []Risk        // 検出されたリスク
+	Metrics         Metrics       // 各種メトリクス
+	DailyCommits    []DailyCommit // 日別コミット数
+	GeneratedAt     time.Time     // レポート生成日時
+}
+
+// DailyCommit は1日分のコミット数を表す。
+type DailyCommit struct {
+	Date  time.Time
+	Count int
 }
 
 // Metrics は各種メトリクスを表す。

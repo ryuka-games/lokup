@@ -53,7 +53,10 @@ func (s *Service) Analyze(ctx context.Context, input ServiceInput) (*domain.Anal
 	// 4. メトリクス計算
 	metrics := s.calculateMetrics(commits, contributors, pullRequests, input.Period)
 
-	// 5. 結果を組み立て
+	// 5. 日別コミット数を集計
+	dailyCommits := s.aggregateDailyCommits(commits, input.Period)
+
+	// 6. 結果を組み立て
 	return &domain.AnalysisResult{
 		Repository:      input.Repository,
 		Period:          input.Period,
@@ -61,6 +64,7 @@ func (s *Service) Analyze(ctx context.Context, input ServiceInput) (*domain.Anal
 		HealthScore:     healthScore,
 		Risks:           risks,
 		Metrics:         metrics,
+		DailyCommits:    dailyCommits,
 		GeneratedAt:     time.Now(),
 	}, nil
 }
@@ -317,4 +321,28 @@ func (s *Service) calculateAvgLeadTime(pullRequests []PullRequest) float64 {
 	}
 
 	return totalLeadTime / float64(mergedCount)
+}
+
+// aggregateDailyCommits はコミットを日別に集計する。
+func (s *Service) aggregateDailyCommits(commits []Commit, period domain.DateRange) []domain.DailyCommit {
+	// 日付ごとのコミット数をカウント
+	countByDate := make(map[string]int)
+	for _, c := range commits {
+		dateKey := c.Date.Format("2006-01-02")
+		countByDate[dateKey]++
+	}
+
+	// 期間内の全日付を生成（コミットがない日も0として含める）
+	var result []domain.DailyCommit
+	current := period.From
+	for !current.After(period.To) {
+		dateKey := current.Format("2006-01-02")
+		result = append(result, domain.DailyCommit{
+			Date:  current,
+			Count: countByDate[dateKey],
+		})
+		current = current.AddDate(0, 0, 1)
+	}
+
+	return result
 }
