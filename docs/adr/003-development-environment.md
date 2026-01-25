@@ -102,9 +102,36 @@ scoop update go
 
 ### セットアップ
 
-VSCode 拡張機能:
-- `golang.go` — Go 公式拡張
-- `vscodevim.vim` — Vim キーバインド
+#### 1. VSCode 拡張機能インストール
+
+Extensions（Ctrl+Shift+X）から以下をインストール：
+- `golang.go` — Go 公式拡張（必須）
+- `vscodevim.vim` — Vim キーバインド（オプション）
+
+#### 2. Go ツールのインストール
+
+Go 拡張インストール後、自動で gopls がインストールされる。
+されない場合は手動で：
+1. `Ctrl + Shift + P`
+2. `Go: Install/Update Tools` を選択
+3. 全てにチェックを入れて OK
+
+#### 3. 動作確認
+
+- `.go` ファイルを開く
+- 関数名にマウスホバー → 型情報が表示される
+- `F12` → 定義ジャンプできる
+
+これで開発環境OK。
+
+#### よく使うショートカット
+
+| 操作 | キー |
+|------|------|
+| 定義にジャンプ | F12 / Ctrl+クリック |
+| 参照一覧 | Shift+F12 |
+| 補完 | Ctrl+Space |
+| コマンドパレット | Ctrl+Shift+P |
 
 ## References
 
