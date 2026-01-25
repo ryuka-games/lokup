@@ -103,6 +103,39 @@ const htmlTemplate = `<!DOCTYPE html>
             font-size: 0.8rem;
             color: #999;
         }
+        .score-breakdown {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+        .score-breakdown table {
+            width: 100%;
+            font-size: 0.85rem;
+        }
+        .score-breakdown td {
+            padding: 4px 0;
+        }
+        .score-breakdown .points {
+            text-align: right;
+            font-weight: bold;
+        }
+        .score-breakdown .positive .points {
+            color: #22c55e;
+        }
+        .score-breakdown .negative .points {
+            color: #ef4444;
+        }
+        .score-breakdown .total {
+            border-top: 1px solid #ddd;
+            font-weight: bold;
+        }
+        .score-breakdown .total td {
+            padding-top: 8px;
+        }
+        .score-breakdown .detail {
+            color: #999;
+            font-size: 0.8rem;
+        }
         .metrics {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -216,18 +249,38 @@ const htmlTemplate = `<!DOCTYPE html>
                     <h3>開発効率スコア</h3>
                     <div class="score-value grade-{{.EfficiencyGrade | lower}}">{{.EfficiencyScore}}</div>
                     <div class="score-grade">グレード {{.EfficiencyGrade}}</div>
-                    <div class="score-desc">
-                        開発チームの生産性を評価<br>
-                        <span class="criteria">A: 80〜100（良好） B: 60〜79（普通） C: 40〜59（要改善） D: 0〜39（危険）</span>
+                    <div class="score-breakdown">
+                        <table>
+                            {{range .EfficiencyBreakdown}}
+                            <tr class="{{if gt .Points 0}}positive{{else if lt .Points 0}}negative{{end}}">
+                                <td>{{.Label}}{{if .Detail}} <span class="detail">({{.Detail}})</span>{{end}}</td>
+                                <td class="points">{{if gt .Points 0}}+{{end}}{{.Points}}</td>
+                            </tr>
+                            {{end}}
+                            <tr class="total">
+                                <td>合計</td>
+                                <td class="points">{{.EfficiencyScore}}</td>
+                            </tr>
+                        </table>
                     </div>
                 </div>
                 <div class="score-card">
                     <h3>コード健全性スコア</h3>
                     <div class="score-value grade-{{.HealthGrade | lower}}">{{.HealthScore}}</div>
                     <div class="score-grade">グレード {{.HealthGrade}}</div>
-                    <div class="score-desc">
-                        コードベースの保守性を評価<br>
-                        <span class="criteria">A: 80〜100（良好） B: 60〜79（普通） C: 40〜59（要改善） D: 0〜39（危険）</span>
+                    <div class="score-breakdown">
+                        <table>
+                            {{range .HealthBreakdown}}
+                            <tr class="{{if gt .Points 0}}positive{{else if lt .Points 0}}negative{{end}}">
+                                <td>{{.Label}}{{if .Detail}} <span class="detail">({{.Detail}})</span>{{end}}</td>
+                                <td class="points">{{if gt .Points 0}}+{{end}}{{.Points}}</td>
+                            </tr>
+                            {{end}}
+                            <tr class="total">
+                                <td>合計</td>
+                                <td class="points">{{.HealthScore}}</td>
+                            </tr>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -257,6 +310,11 @@ const htmlTemplate = `<!DOCTYPE html>
                     <div class="value">{{printf "%.1f" .LateNightRate}}%</div>
                     <div class="label">深夜コミット率</div>
                     <div class="metric-desc">22:00〜翌5:00のコミット割合<br><span class="criteria">基準: 30%以下が健全</span></div>
+                </div>
+                <div class="metric-card {{if ge .AvgLeadTime 7.0}}warning{{end}}">
+                    <div class="value">{{printf "%.1f" .AvgLeadTime}}日</div>
+                    <div class="label">PRリードタイム</div>
+                    <div class="metric-desc">PR作成からマージまでの平均日数<br><span class="criteria">基準: 7日以下が健全</span></div>
                 </div>
             </div>
         </section>

@@ -16,6 +16,12 @@ var templateFuncs = template.FuncMap{
 	"ge": func(a, b float64) bool {
 		return a >= b
 	},
+	"gt": func(a, b int) bool {
+		return a > b
+	},
+	"lt": func(a, b int) bool {
+		return a < b
+	},
 }
 
 // Service はレポート生成のビジネスロジックを担当する。
@@ -54,23 +60,33 @@ func (s *Service) Generate(result *domain.AnalysisResult, outputPath string) err
 
 // TemplateData はテンプレートに渡すデータ。
 type TemplateData struct {
-	Repository        string
-	PeriodFrom        string
-	PeriodTo          string
-	PeriodDays        int
-	EfficiencyScore   int
-	EfficiencyGrade   string
-	HealthScore       int
-	HealthGrade       string
-	TotalCommits      int
-	FeatureAddition   float64
-	Contributors      int
-	LateNightRate     float64
-	Risks             []RiskData
-	HasRisks          bool
-	CommitsByDay      []int    // 日別コミット数（グラフ用）
-	CommitDayLabels   []string // 日付ラベル（グラフ用）
-	GeneratedAt       string
+	Repository            string
+	PeriodFrom            string
+	PeriodTo              string
+	PeriodDays            int
+	EfficiencyScore       int
+	EfficiencyGrade       string
+	EfficiencyBreakdown   []BreakdownItem
+	HealthScore           int
+	HealthGrade           string
+	HealthBreakdown       []BreakdownItem
+	TotalCommits          int
+	FeatureAddition       float64
+	Contributors          int
+	LateNightRate         float64
+	AvgLeadTime           float64 // PRリードタイム（日）
+	Risks                 []RiskData
+	HasRisks              bool
+	CommitsByDay          []int    // 日別コミット数（グラフ用）
+	CommitDayLabels       []string // 日付ラベル（グラフ用）
+	GeneratedAt           string
+}
+
+// BreakdownItem はスコア内訳の1項目。
+type BreakdownItem struct {
+	Label  string
+	Points int
+	Detail string
 }
 
 // RiskData はリスク情報。
@@ -107,22 +123,35 @@ func (s *Service) prepareTemplateData(r *domain.AnalysisResult) TemplateData {
 		}
 	}
 
+	// スコア内訳を変換
+	efficiencyBreakdown := make([]BreakdownItem, len(r.EfficiencyScore.Breakdown))
+	for i, b := range r.EfficiencyScore.Breakdown {
+		efficiencyBreakdown[i] = BreakdownItem{Label: b.Label, Points: b.Points, Detail: b.Detail}
+	}
+	healthBreakdown := make([]BreakdownItem, len(r.HealthScore.Breakdown))
+	for i, b := range r.HealthScore.Breakdown {
+		healthBreakdown[i] = BreakdownItem{Label: b.Label, Points: b.Points, Detail: b.Detail}
+	}
+
 	return TemplateData{
-		Repository:       r.Repository.FullName(),
-		PeriodFrom:       r.Period.From.Format("2006-01-02"),
-		PeriodTo:         r.Period.To.Format("2006-01-02"),
-		PeriodDays:       r.Period.Days(),
-		EfficiencyScore:  r.EfficiencyScore.Value,
-		EfficiencyGrade:  r.EfficiencyScore.Grade(),
-		HealthScore:      r.HealthScore.Value,
-		HealthGrade:      r.HealthScore.Grade(),
-		TotalCommits:     r.Metrics.TotalCommits,
-		FeatureAddition:  r.Metrics.FeatureAdditionRate,
-		Contributors:     r.Metrics.TotalContributors,
-		LateNightRate:    r.Metrics.LateNightCommitRate,
-		Risks:            risks,
-		HasRisks:         len(risks) > 0,
-		GeneratedAt:      r.GeneratedAt.Format("2006-01-02 15:04:05"),
+		Repository:          r.Repository.FullName(),
+		PeriodFrom:          r.Period.From.Format("2006-01-02"),
+		PeriodTo:            r.Period.To.Format("2006-01-02"),
+		PeriodDays:          r.Period.Days(),
+		EfficiencyScore:     r.EfficiencyScore.Value,
+		EfficiencyGrade:     r.EfficiencyScore.Grade(),
+		EfficiencyBreakdown: efficiencyBreakdown,
+		HealthScore:         r.HealthScore.Value,
+		HealthGrade:         r.HealthScore.Grade(),
+		HealthBreakdown:     healthBreakdown,
+		TotalCommits:        r.Metrics.TotalCommits,
+		FeatureAddition:     r.Metrics.FeatureAdditionRate,
+		Contributors:        r.Metrics.TotalContributors,
+		LateNightRate:       r.Metrics.LateNightCommitRate,
+		AvgLeadTime:         r.Metrics.AvgLeadTime,
+		Risks:               risks,
+		HasRisks:            len(risks) > 0,
+		GeneratedAt:         r.GeneratedAt.Format("2006-01-02 15:04:05"),
 	}
 }
 

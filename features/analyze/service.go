@@ -2,6 +2,7 @@ package analyze
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/ryuka-games/lokup/domain"
@@ -36,6 +37,12 @@ func (s *Service) Analyze(ctx context.Context, input ServiceInput) (*domain.Anal
 		return nil, err
 	}
 
+	// マージ済みPRを取得（リードタイム計算用）
+	pullRequests, err := s.repo.GetPullRequests(ctx, input.Repository, "closed")
+	if err != nil {
+		return nil, err
+	}
+
 	// 2. リスク検出
 	risks := s.detectRisks(commits, contributors)
 
@@ -44,7 +51,7 @@ func (s *Service) Analyze(ctx context.Context, input ServiceInput) (*domain.Anal
 	healthScore := s.calculateHealthScore(risks)
 
 	// 4. メトリクス計算
-	metrics := s.calculateMetrics(commits, contributors, input.Period)
+	metrics := s.calculateMetrics(commits, contributors, pullRequests, input.Period)
 
 	// 5. 結果を組み立て
 	return &domain.AnalysisResult{
@@ -188,42 +195,80 @@ func (s *Service) detectLateNightRisk(commits []Commit) []domain.Risk {
 func (s *Service) calculateEfficiencyScore(commits []Commit, risks []domain.Risk) domain.Score {
 	// 基本スコア
 	score := 100
+	breakdown := []domain.ScoreBreakdownItem{
+		{Label: "基本スコア", Points: 100},
+	}
 
 	// リスクに応じて減点
 	for _, r := range risks {
+		var points int
 		switch r.Severity {
 		case domain.SeverityHigh:
-			score -= 15
+			points = -15
 		case domain.SeverityMedium:
-			score -= 10
+			points = -10
 		case domain.SeverityLow:
-			score -= 5
+			points = -5
 		}
+		score += points
+		breakdown = append(breakdown, domain.ScoreBreakdownItem{
+			Label:  r.Type.DisplayName(),
+			Points: points,
+			Detail: formatRiskDetail(r),
+		})
 	}
 
-	return domain.NewScore(score)
+	return domain.NewScoreWithBreakdown(score, breakdown)
+}
+
+// formatRiskDetail はリスクの詳細を文字列にフォーマットする。
+func formatRiskDetail(r domain.Risk) string {
+	if r.Value == 0 && r.Threshold == 0 {
+		return ""
+	}
+
+	switch r.Type {
+	case domain.RiskTypeLateNight:
+		return fmt.Sprintf("22-5時のコミットが%d%%、基準%d%%以下", r.Value, r.Threshold)
+	case domain.RiskTypeOwnership:
+		return fmt.Sprintf("1人で%d%%のコミット、基準%d%%以下", r.Value, r.Threshold)
+	case domain.RiskTypeChangeConcentration:
+		return fmt.Sprintf("%d回変更、基準%d回以下", r.Value, r.Threshold)
+	default:
+		return fmt.Sprintf("%d / 基準%d", r.Value, r.Threshold)
+	}
 }
 
 // calculateHealthScore はコード健全性スコアを計算する。
 func (s *Service) calculateHealthScore(risks []domain.Risk) domain.Score {
 	score := 100
-
-	for _, r := range risks {
-		switch r.Severity {
-		case domain.SeverityHigh:
-			score -= 10
-		case domain.SeverityMedium:
-			score -= 5
-		case domain.SeverityLow:
-			score -= 2
-		}
+	breakdown := []domain.ScoreBreakdownItem{
+		{Label: "基本スコア", Points: 100},
 	}
 
-	return domain.NewScore(score)
+	for _, r := range risks {
+		var points int
+		switch r.Severity {
+		case domain.SeverityHigh:
+			points = -10
+		case domain.SeverityMedium:
+			points = -5
+		case domain.SeverityLow:
+			points = -2
+		}
+		score += points
+		breakdown = append(breakdown, domain.ScoreBreakdownItem{
+			Label:  r.Type.DisplayName(),
+			Points: points,
+			Detail: formatRiskDetail(r),
+		})
+	}
+
+	return domain.NewScoreWithBreakdown(score, breakdown)
 }
 
 // calculateMetrics は各種メトリクスを計算する。
-func (s *Service) calculateMetrics(commits []Commit, contributors []Contributor, period domain.DateRange) domain.Metrics {
+func (s *Service) calculateMetrics(commits []Commit, contributors []Contributor, pullRequests []PullRequest, period domain.DateRange) domain.Metrics {
 	days := period.Days()
 	if days == 0 {
 		days = 1
@@ -242,10 +287,34 @@ func (s *Service) calculateMetrics(commits []Commit, contributors []Contributor,
 		lateNightRate = float64(lateNightCount) / float64(len(commits)) * 100
 	}
 
+	// PRリードタイム（作成からマージまでの平均日数）を計算
+	avgLeadTime := s.calculateAvgLeadTime(pullRequests)
+
 	return domain.Metrics{
 		TotalCommits:        len(commits),
 		FeatureAdditionRate: float64(len(commits)) / float64(days),
 		TotalContributors:   len(contributors),
 		LateNightCommitRate: lateNightRate,
+		AvgLeadTime:         avgLeadTime,
 	}
+}
+
+// calculateAvgLeadTime はマージ済みPRの平均リードタイム（日数）を計算する。
+func (s *Service) calculateAvgLeadTime(pullRequests []PullRequest) float64 {
+	var totalLeadTime float64
+	var mergedCount int
+
+	for _, pr := range pullRequests {
+		leadTime := pr.LeadTime()
+		if leadTime >= 0 { // マージ済みのみ
+			totalLeadTime += leadTime
+			mergedCount++
+		}
+	}
+
+	if mergedCount == 0 {
+		return 0
+	}
+
+	return totalLeadTime / float64(mergedCount)
 }

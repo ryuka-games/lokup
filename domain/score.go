@@ -2,7 +2,15 @@ package domain
 
 // Score は0-100の範囲のスコアを表す値オブジェクト。
 type Score struct {
-	Value int
+	Value     int
+	Breakdown []ScoreBreakdownItem // スコアの内訳
+}
+
+// ScoreBreakdownItem はスコア内訳の1項目。
+type ScoreBreakdownItem struct {
+	Label  string // 項目名（例: "基本スコア", "深夜労働リスク"）
+	Points int    // 点数（正: 加点、負: 減点）
+	Detail string // 詳細（例: "32% / 基準30%"）
 }
 
 // NewScore は Score を生成する。
@@ -15,6 +23,17 @@ func NewScore(value int) Score {
 		value = 100
 	}
 	return Score{Value: value}
+}
+
+// NewScoreWithBreakdown は内訳付きの Score を生成する。
+func NewScoreWithBreakdown(value int, breakdown []ScoreBreakdownItem) Score {
+	if value < 0 {
+		value = 0
+	}
+	if value > 100 {
+		value = 100
+	}
+	return Score{Value: value, Breakdown: breakdown}
 }
 
 // Grade はスコアをグレード（A/B/C/D）で返す。
