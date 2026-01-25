@@ -2,6 +2,7 @@ package analyze
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/ryuka-games/lokup/domain"
@@ -47,11 +48,12 @@ type Contributor struct {
 
 // PullRequest はプルリクエスト情報を表す。
 type PullRequest struct {
-	Number    int        // PR番号
-	Title     string     // タイトル
-	Author    string     // 作成者
-	CreatedAt time.Time  // 作成日時
-	MergedAt  *time.Time // マージ日時（nilならマージされていない）
+	Number     int        // PR番号
+	Title      string     // タイトル
+	Author     string     // 作成者
+	HeadBranch string     // ブランチ名（例: "fix/login-bug"）
+	CreatedAt  time.Time  // 作成日時
+	MergedAt   *time.Time // マージ日時（nilならマージされていない）
 }
 
 // LeadTime はPRのリードタイム（作成からマージまでの日数）を返す。
@@ -61,4 +63,19 @@ func (pr PullRequest) LeadTime() float64 {
 		return -1
 	}
 	return pr.MergedAt.Sub(pr.CreatedAt).Hours() / 24
+}
+
+// IsBugFix はブランチ名からバグ修正PRかどうかを判定する。
+func (pr PullRequest) IsBugFix() bool {
+	branch := strings.ToLower(pr.HeadBranch)
+	return strings.HasPrefix(branch, "fix/") ||
+		strings.HasPrefix(branch, "bugfix/") ||
+		strings.HasPrefix(branch, "hotfix/")
+}
+
+// IsFeature はブランチ名から機能追加PRかどうかを判定する。
+func (pr PullRequest) IsFeature() bool {
+	branch := strings.ToLower(pr.HeadBranch)
+	return strings.HasPrefix(branch, "feature/") ||
+		strings.HasPrefix(branch, "feat/")
 }

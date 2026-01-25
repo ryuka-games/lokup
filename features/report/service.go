@@ -76,6 +76,10 @@ type TemplateData struct {
 	Contributors          int
 	LateNightRate         float64
 	AvgLeadTime           float64 // PRリードタイム（日）
+	BugFixRatio           float64 // バグ修正割合（%）
+	FeaturePRCount        int     // feature PRの件数
+	BugFixPRCount         int     // bugfix PRの件数
+	OtherPRCount          int     // その他PRの件数
 	Risks                 []RiskData
 	HasRisks              bool
 	CommitsByDay          []int    // 日別コミット数（グラフ用）
@@ -158,6 +162,10 @@ func (s *Service) prepareTemplateData(r *domain.AnalysisResult) TemplateData {
 		Contributors:        r.Metrics.TotalContributors,
 		LateNightRate:       r.Metrics.LateNightCommitRate,
 		AvgLeadTime:         r.Metrics.AvgLeadTime,
+		BugFixRatio:         r.Metrics.BugFixRatio,
+		FeaturePRCount:      r.Metrics.FeaturePRCount,
+		BugFixPRCount:       r.Metrics.BugFixPRCount,
+		OtherPRCount:        r.Metrics.OtherPRCount,
 		Risks:               risks,
 		HasRisks:            len(risks) > 0,
 		CommitsByDay:        commitsByDay,

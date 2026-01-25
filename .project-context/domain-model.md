@@ -174,7 +174,12 @@ type Metrics struct {
     FeatureAdditionRate float64  // 機能追加速度（コミット/日）
     BugFixRatio         float64  // バグ修正の割合（%）
     ReworkRate          float64  // 手戻り率（%）
-    LeadTime            float64  // PR作成→マージの平均日数
+    AvgLeadTime         float64  // PR作成→マージの平均日数
+
+    // PR内訳
+    FeaturePRCount int  // feature PRの件数
+    BugFixPRCount  int  // bugfix PRの件数
+    OtherPRCount   int  // その他PRの件数
 
     // 技術向け
     TotalCommits        int
@@ -182,6 +187,43 @@ type Metrics struct {
     TotalContributors   int
     LateNightCommitRate float64  // 深夜コミット率（%）
 }
+```
+
+---
+
+## PR分類ロジック
+
+PRはブランチ名プレフィックスで分類される。
+
+```go
+// IsBugFix はブランチ名からバグ修正PRかどうかを判定する。
+func (pr PullRequest) IsBugFix() bool {
+    branch := strings.ToLower(pr.HeadBranch)
+    return strings.HasPrefix(branch, "fix/") ||
+        strings.HasPrefix(branch, "bugfix/") ||
+        strings.HasPrefix(branch, "hotfix/")
+}
+
+// IsFeature はブランチ名から機能追加PRかどうかを判定する。
+func (pr PullRequest) IsFeature() bool {
+    branch := strings.ToLower(pr.HeadBranch)
+    return strings.HasPrefix(branch, "feature/") ||
+        strings.HasPrefix(branch, "feat/")
+}
+```
+
+### 分類表
+
+| 分類 | プレフィックス | 用途 |
+|------|---------------|------|
+| Feature | `feature/`, `feat/` | 新機能追加 |
+| BugFix | `fix/`, `bugfix/`, `hotfix/` | バグ修正 |
+| Other | 上記以外 | リファクタ、ドキュメント等 |
+
+### バグ修正割合
+
+```
+BugFixRatio = BugFixPRCount / (FeaturePRCount + BugFixPRCount + OtherPRCount) × 100
 ```
 
 ---

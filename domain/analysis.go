@@ -46,6 +46,11 @@ type Metrics struct {
 	ReworkRate          float64 // 手戻り率（%）
 	AvgLeadTime         float64 // PR作成→マージの平均日数
 
+	// PR内訳
+	FeaturePRCount int // feature PRの件数
+	BugFixPRCount  int // bugfix PRの件数
+	OtherPRCount   int // その他PRの件数
+
 	// 技術向けメトリクス
 	TotalFiles          int     // 総ファイル数
 	TotalContributors   int     // コントリビューター数

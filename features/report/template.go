@@ -316,6 +316,11 @@ const htmlTemplate = `<!DOCTYPE html>
                     <div class="label">PRリードタイム</div>
                     <div class="metric-desc">PR作成からマージまでの平均日数<br><span class="criteria">基準: 7日以下が健全</span></div>
                 </div>
+                <div class="metric-card {{if ge .BugFixRatio 50.0}}warning{{end}}">
+                    <div class="value">{{printf "%.1f" .BugFixRatio}}%</div>
+                    <div class="label">バグ修正割合</div>
+                    <div class="metric-desc">feature: {{.FeaturePRCount}}件 / fix: {{.BugFixPRCount}}件 / other: {{.OtherPRCount}}件<br><span class="criteria">基準: 50%以下が健全</span></div>
+                </div>
             </div>
         </section>
 

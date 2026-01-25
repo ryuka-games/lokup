@@ -294,13 +294,43 @@ func (s *Service) calculateMetrics(commits []Commit, contributors []Contributor,
 	// PRリードタイム（作成からマージまでの平均日数）を計算
 	avgLeadTime := s.calculateAvgLeadTime(pullRequests)
 
+	// PR内訳を計算
+	featureCount, bugFixCount, otherCount, bugFixRatio := s.calculatePRBreakdown(pullRequests)
+
 	return domain.Metrics{
 		TotalCommits:        len(commits),
 		FeatureAdditionRate: float64(len(commits)) / float64(days),
+		BugFixRatio:         bugFixRatio,
+		FeaturePRCount:      featureCount,
+		BugFixPRCount:       bugFixCount,
+		OtherPRCount:        otherCount,
 		TotalContributors:   len(contributors),
 		LateNightCommitRate: lateNightRate,
 		AvgLeadTime:         avgLeadTime,
 	}
+}
+
+// calculatePRBreakdown はマージ済みPRの内訳を計算する。
+func (s *Service) calculatePRBreakdown(pullRequests []PullRequest) (feature, bugfix, other int, bugFixRatio float64) {
+	for _, pr := range pullRequests {
+		if pr.MergedAt != nil { // マージ済みのみ
+			if pr.IsFeature() {
+				feature++
+			} else if pr.IsBugFix() {
+				bugfix++
+			} else {
+				other++
+			}
+		}
+	}
+
+	total := feature + bugfix + other
+	if total == 0 {
+		return 0, 0, 0, 0
+	}
+
+	bugFixRatio = float64(bugfix) / float64(total) * 100
+	return
 }
 
 // calculateAvgLeadTime はマージ済みPRの平均リードタイム（日数）を計算する。

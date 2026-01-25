@@ -183,11 +183,12 @@ func (c *Client) GetPullRequests(ctx context.Context, repo domain.Repository, st
 	prs := make([]analyze.PullRequest, len(apiPRs))
 	for i, ap := range apiPRs {
 		prs[i] = analyze.PullRequest{
-			Number:    ap.Number,
-			Title:     ap.Title,
-			Author:    ap.User.Login,
-			CreatedAt: ap.CreatedAt,
-			MergedAt:  ap.MergedAt,
+			Number:     ap.Number,
+			Title:      ap.Title,
+			Author:     ap.User.Login,
+			HeadBranch: ap.Head.Ref,
+			CreatedAt:  ap.CreatedAt,
+			MergedAt:   ap.MergedAt,
 		}
 	}
 
@@ -219,11 +220,14 @@ type apiContent struct {
 }
 
 type apiPullRequest struct {
-	Number    int       `json:"number"`
-	Title     string    `json:"title"`
-	CreatedAt time.Time `json:"created_at"`
+	Number    int        `json:"number"`
+	Title     string     `json:"title"`
+	CreatedAt time.Time  `json:"created_at"`
 	MergedAt  *time.Time `json:"merged_at"`
 	User      struct {
 		Login string `json:"login"`
 	} `json:"user"`
+	Head struct {
+		Ref string `json:"ref"` // ブランチ名
+	} `json:"head"`
 }
