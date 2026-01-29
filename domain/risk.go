@@ -1,32 +1,64 @@
 package domain
 
+// Category はメトリクスのカテゴリを表す。
+type Category string
+
+const (
+	// CategoryVelocity は開発速度カテゴリ。
+	CategoryVelocity Category = "velocity"
+	// CategoryQuality はコード品質カテゴリ。
+	CategoryQuality Category = "quality"
+	// CategoryTechDebt は技術的負債カテゴリ。
+	CategoryTechDebt Category = "tech_debt"
+	// CategoryHealth はチーム健全性カテゴリ。
+	CategoryHealth Category = "health"
+)
+
 // RiskType はリスクの種類を表す。
 type RiskType string
 
 const (
 	// RiskTypeChangeConcentration は変更集中リスク。
-	// 同じファイルが短期間に何度も変更されている。
 	RiskTypeChangeConcentration RiskType = "change_concentration"
 
 	// RiskTypeLargeFile は巨大ファイル。
-	// ファイルの行数が閾値を超えている。
 	RiskTypeLargeFile RiskType = "large_file"
 
-	// RiskTypeAbandoned は放置ファイル。
-	// 長期間変更されていないコード。
-	RiskTypeAbandoned RiskType = "abandoned"
-
 	// RiskTypeOwnership は属人化。
-	// 特定の人しか触っていないファイル。
 	RiskTypeOwnership RiskType = "ownership"
 
 	// RiskTypeOutdatedDeps は依存の古さ。
-	// 依存パッケージのバージョンが古い。
 	RiskTypeOutdatedDeps RiskType = "outdated_deps"
 
 	// RiskTypeLateNight は深夜労働。
-	// 深夜のコミットが多い。
 	RiskTypeLateNight RiskType = "late_night"
+
+	// RiskTypeSlowLeadTime はPRリードタイムが長い。
+	RiskTypeSlowLeadTime RiskType = "slow_lead_time"
+
+	// RiskTypeSlowReview はレビュー待ち時間が長い。
+	RiskTypeSlowReview RiskType = "slow_review"
+
+	// RiskTypeLargePR はPRサイズが大きい。
+	RiskTypeLargePR RiskType = "large_pr"
+
+	// RiskTypeLowIssueClose はIssueクローズ率が低い。
+	RiskTypeLowIssueClose RiskType = "low_issue_close"
+
+	// RiskTypeBugFixHigh はバグ修正割合が高い。
+	RiskTypeBugFixHigh RiskType = "bug_fix_high"
+
+	// RiskTypeLowDeployFreq はデプロイ頻度が低い。
+	RiskTypeLowDeployFreq RiskType = "low_deploy_freq"
+
+	// RiskTypeHighChangeFailure は変更失敗率が高い。
+	RiskTypeHighChangeFailure RiskType = "high_change_failure"
+
+	// RiskTypeSlowRecovery は復旧時間が長い。
+	RiskTypeSlowRecovery RiskType = "slow_recovery"
+
+	// RiskTypeLowFeatureInvestment は機能投資比率が低い。
+	RiskTypeLowFeatureInvestment RiskType = "low_feature_investment"
 )
 
 // DisplayName はリスク種別の表示名を返す。
@@ -34,15 +66,39 @@ func (r RiskType) DisplayName() string {
 	names := map[RiskType]string{
 		RiskTypeChangeConcentration: "変更集中リスク",
 		RiskTypeLargeFile:           "巨大ファイル",
-		RiskTypeAbandoned:           "放置ファイル",
 		RiskTypeOwnership:           "属人化",
 		RiskTypeOutdatedDeps:        "依存の古さ",
 		RiskTypeLateNight:           "深夜労働",
+		RiskTypeSlowLeadTime:        "PRリードタイム超過",
+		RiskTypeSlowReview:          "レビュー待ち超過",
+		RiskTypeLargePR:             "PRサイズ超過",
+		RiskTypeLowIssueClose:       "Issueクローズ率低下",
+		RiskTypeBugFixHigh:          "バグ修正割合過多",
+		RiskTypeLowDeployFreq:       "デプロイ頻度不足",
+		RiskTypeHighChangeFailure:   "変更失敗率過多",
+		RiskTypeSlowRecovery:        "復旧時間超過",
+		RiskTypeLowFeatureInvestment: "機能投資不足",
 	}
 	if name, ok := names[r]; ok {
 		return name
 	}
 	return string(r)
+}
+
+// Category はリスクタイプが属するカテゴリを返す。
+func (r RiskType) Category() Category {
+	switch r {
+	case RiskTypeSlowLeadTime, RiskTypeSlowReview, RiskTypeLowDeployFreq, RiskTypeSlowRecovery:
+		return CategoryVelocity
+	case RiskTypeChangeConcentration, RiskTypeLargePR, RiskTypeLowIssueClose, RiskTypeBugFixHigh, RiskTypeHighChangeFailure:
+		return CategoryQuality
+	case RiskTypeLargeFile, RiskTypeOutdatedDeps, RiskTypeLowFeatureInvestment:
+		return CategoryTechDebt
+	case RiskTypeLateNight, RiskTypeOwnership:
+		return CategoryHealth
+	default:
+		return CategoryQuality
+	}
 }
 
 // Severity はリスクの重大度を表す。

@@ -2,7 +2,7 @@ package analyze
 
 import (
 	"context"
-	"fmt"
+	"log"
 	"time"
 
 	"github.com/ryuka-games/lokup/domain"
@@ -38,341 +38,130 @@ func (s *Service) Analyze(ctx context.Context, input ServiceInput) (*domain.Anal
 	}
 
 	// マージ済みPRを取得（リードタイム計算用）
-	pullRequests, err := s.repo.GetPullRequests(ctx, input.Repository, "closed")
+	closedPRs, err := s.repo.GetPullRequests(ctx, input.Repository, "closed")
 	if err != nil {
 		return nil, err
 	}
 
+	// オープンPRを取得
+	openPRs, err := s.repo.GetPullRequests(ctx, input.Repository, "open")
+	if err != nil {
+		return nil, err
+	}
+
+	// Issue一覧を取得（期間内の作成・クローズを計算）
+	periodStart := input.Period.From
+	allIssues, err := s.repo.GetIssues(ctx, input.Repository, "all", &periodStart)
+	if err != nil {
+		return nil, err
+	}
+
+	// オープンIssue数を取得
+	openIssues, err := s.repo.GetIssues(ctx, input.Repository, "open", nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// ファイル一覧を取得（巨大ファイル検出用）
+	files, err := s.repo.GetFiles(ctx, input.Repository)
+	if err != nil {
+		return nil, err
+	}
+
+	// 依存情報を取得（古い依存検出用）
+	dependencies, err := s.repo.GetDependencies(ctx, input.Repository)
+	if err != nil {
+		return nil, err
+	}
+
+	// リリース一覧を取得（DORA デプロイ頻度用）
+	releases, err := s.repo.GetReleases(ctx, input.Repository)
+	if err != nil {
+		log.Printf("Warning: failed to get releases: %v", err)
+		releases = nil
+	}
+
+	// 前期データを取得（トレンド比較用）
+	prevPeriodDays := input.Period.Days()
+	prevTo := input.Period.From.AddDate(0, 0, -1)
+	prevFrom := prevTo.AddDate(0, 0, -prevPeriodDays)
+	prevPeriod := domain.NewDateRange(prevFrom, prevTo)
+
+	prevCommits, err := s.repo.GetCommits(ctx, input.Repository, prevPeriod)
+	if err != nil {
+		log.Printf("Warning: failed to get previous period commits: %v", err)
+		prevCommits = nil
+	}
+
+	prevPeriodStart := prevPeriod.From
+	prevIssues, err := s.repo.GetIssues(ctx, input.Repository, "all", &prevPeriodStart)
+	if err != nil {
+		log.Printf("Warning: failed to get previous period issues: %v", err)
+		prevIssues = nil
+	}
+
+	// レビュー情報を取得しPR詳細を構築（APIコール共有）
+	prDetails := s.buildPRDetails(ctx, input.Repository, closedPRs)
+
+	// レビュー待ち時間の平均を計算
+	avgReviewWaitTime := calcAvgReviewWait(prDetails)
+
+	// PRサイズの平均をPR詳細から計算
+	avgPRSize := calcAvgPRSize(prDetails)
+
 	// 2. リスク検出
-	risks := s.detectRisks(commits, contributors)
+	risks, largeFiles := s.detectRisks(commits, contributors, files)
 
-	// 3. スコア計算
-	efficiencyScore := s.calculateEfficiencyScore(commits, risks)
-	healthScore := s.calculateHealthScore(risks)
+	// 古い依存の検出
+	outdatedRisks, outdatedDeps := s.detectOutdatedDeps(dependencies)
+	risks = append(risks, outdatedRisks...)
 
-	// 4. メトリクス計算
-	metrics := s.calculateMetrics(commits, contributors, pullRequests, input.Period)
+	// 3. メトリクス計算
+	metrics := s.calculateMetrics(metricsInput{
+		commits:           commits,
+		contributors:      contributors,
+		closedPRs:         closedPRs,
+		openPRs:           openPRs,
+		allIssues:         allIssues,
+		openIssues:        openIssues,
+		files:             files,
+		releases:          releases,
+		period:            input.Period,
+		avgReviewWaitTime: avgReviewWaitTime,
+		avgPRSize:         avgPRSize,
+	})
 
-	// 5. 日別コミット数を集計
+	// 4. メトリクスベースのリスク検出
+	metricRisks := s.detectMetricRisks(metrics)
+	risks = append(risks, metricRisks...)
+
+	// 5. カテゴリ別スコア計算
+	categoryScores := s.calculateCategoryScores(risks)
+
+	// 6. 日別コミット数を集計
 	dailyCommits := s.aggregateDailyCommits(commits, input.Period)
 
-	// 6. 結果を組み立て
+	// 7. ドリルダウンデータ構築
+	contributorDetails := s.buildContributorDetails(contributors)
+	hourlyCommits := s.aggregateHourlyCommits(commits)
+
+	// 8. トレンド比較
+	trends := s.calculateTrends(metrics, prevCommits, prevIssues, prevPeriod)
+
+	// 9. 結果を組み立て
 	return &domain.AnalysisResult{
-		Repository:      input.Repository,
-		Period:          input.Period,
-		EfficiencyScore: efficiencyScore,
-		HealthScore:     healthScore,
-		Risks:           risks,
-		Metrics:         metrics,
-		DailyCommits:    dailyCommits,
-		GeneratedAt:     time.Now(),
+		Repository:         input.Repository,
+		Period:             input.Period,
+		CategoryScores:     categoryScores,
+		Risks:              risks,
+		Metrics:            metrics,
+		DailyCommits:       dailyCommits,
+		LargeFiles:         largeFiles,
+		OutdatedDeps:       outdatedDeps,
+		PRDetails:          prDetails,
+		ContributorDetails: contributorDetails,
+		HourlyCommits:      hourlyCommits,
+		Trends:             trends,
+		GeneratedAt:        time.Now(),
 	}, nil
-}
-
-// detectRisks はコミット履歴からリスクを検出する。
-func (s *Service) detectRisks(commits []Commit, contributors []Contributor) []domain.Risk {
-	var risks []domain.Risk
-
-	// 変更集中リスクの検出
-	risks = append(risks, s.detectChangeConcentration(commits)...)
-
-	// 属人化リスクの検出
-	risks = append(risks, s.detectOwnershipRisk(contributors)...)
-
-	// 深夜労働リスクの検出
-	risks = append(risks, s.detectLateNightRisk(commits)...)
-
-	return risks
-}
-
-// detectChangeConcentration は変更集中リスクを検出する。
-func (s *Service) detectChangeConcentration(commits []Commit) []domain.Risk {
-	var risks []domain.Risk
-
-	// ファイルごとの変更回数をカウント
-	fileChanges := make(map[string]int)
-	for _, c := range commits {
-		for _, f := range c.Files {
-			fileChanges[f]++
-		}
-	}
-
-	// 閾値を超えたファイルをリスクとして報告
-	const warningThreshold = 10
-	const criticalThreshold = 20
-
-	for file, count := range fileChanges {
-		if count >= criticalThreshold {
-			risks = append(risks, domain.NewRisk(
-				domain.RiskTypeChangeConcentration,
-				domain.SeverityHigh,
-				file,
-				count,
-				criticalThreshold,
-			))
-		} else if count >= warningThreshold {
-			risks = append(risks, domain.NewRisk(
-				domain.RiskTypeChangeConcentration,
-				domain.SeverityMedium,
-				file,
-				count,
-				warningThreshold,
-			))
-		}
-	}
-
-	return risks
-}
-
-// detectOwnershipRisk は属人化リスクを検出する。
-func (s *Service) detectOwnershipRisk(contributors []Contributor) []domain.Risk {
-	var risks []domain.Risk
-
-	if len(contributors) == 0 {
-		return risks
-	}
-
-	// 総コミット数を計算
-	totalCommits := 0
-	for _, c := range contributors {
-		totalCommits += c.Contributions
-	}
-
-	if totalCommits == 0 {
-		return risks
-	}
-
-	// トップコントリビューターの割合を計算
-	topContributor := contributors[0]
-	ratio := float64(topContributor.Contributions) / float64(totalCommits)
-
-	const ownershipThreshold = 0.8 // 80%以上で属人化
-	if ratio >= ownershipThreshold {
-		risks = append(risks, domain.Risk{
-			Type:        domain.RiskTypeOwnership,
-			Severity:    domain.SeverityMedium,
-			Target:      topContributor.Login,
-			Description: "1人のコントリビューターがコミットの大部分を占めています",
-			Value:       int(ratio * 100),
-			Threshold:   int(ownershipThreshold * 100),
-		})
-	}
-
-	return risks
-}
-
-// detectLateNightRisk は深夜労働リスクを検出する。
-func (s *Service) detectLateNightRisk(commits []Commit) []domain.Risk {
-	var risks []domain.Risk
-
-	if len(commits) == 0 {
-		return risks
-	}
-
-	// 深夜コミット（22時〜5時）をカウント
-	lateNightCount := 0
-	for _, c := range commits {
-		hour := c.Date.Hour()
-		if hour >= 22 || hour < 5 {
-			lateNightCount++
-		}
-	}
-
-	ratio := float64(lateNightCount) / float64(len(commits))
-	const lateNightThreshold = 0.3 // 30%以上で警告
-
-	if ratio >= lateNightThreshold {
-		risks = append(risks, domain.Risk{
-			Type:        domain.RiskTypeLateNight,
-			Severity:    domain.SeverityMedium,
-			Target:      "リポジトリ全体",
-			Description: "深夜のコミットが多いです",
-			Value:       int(ratio * 100),
-			Threshold:   int(lateNightThreshold * 100),
-		})
-	}
-
-	return risks
-}
-
-// calculateEfficiencyScore は開発効率スコアを計算する。
-func (s *Service) calculateEfficiencyScore(commits []Commit, risks []domain.Risk) domain.Score {
-	// 基本スコア
-	score := 100
-	breakdown := []domain.ScoreBreakdownItem{
-		{Label: "基本スコア", Points: 100},
-	}
-
-	// リスクに応じて減点
-	for _, r := range risks {
-		var points int
-		switch r.Severity {
-		case domain.SeverityHigh:
-			points = -15
-		case domain.SeverityMedium:
-			points = -10
-		case domain.SeverityLow:
-			points = -5
-		}
-		score += points
-		breakdown = append(breakdown, domain.ScoreBreakdownItem{
-			Label:  r.Type.DisplayName(),
-			Points: points,
-			Detail: formatRiskDetail(r),
-		})
-	}
-
-	return domain.NewScoreWithBreakdown(score, breakdown)
-}
-
-// formatRiskDetail はリスクの詳細を文字列にフォーマットする。
-func formatRiskDetail(r domain.Risk) string {
-	if r.Value == 0 && r.Threshold == 0 {
-		return ""
-	}
-
-	switch r.Type {
-	case domain.RiskTypeLateNight:
-		return fmt.Sprintf("22-5時のコミットが%d%%、基準%d%%以下", r.Value, r.Threshold)
-	case domain.RiskTypeOwnership:
-		return fmt.Sprintf("1人で%d%%のコミット、基準%d%%以下", r.Value, r.Threshold)
-	case domain.RiskTypeChangeConcentration:
-		return fmt.Sprintf("%d回変更、基準%d回以下", r.Value, r.Threshold)
-	default:
-		return fmt.Sprintf("%d / 基準%d", r.Value, r.Threshold)
-	}
-}
-
-// calculateHealthScore はコード健全性スコアを計算する。
-func (s *Service) calculateHealthScore(risks []domain.Risk) domain.Score {
-	score := 100
-	breakdown := []domain.ScoreBreakdownItem{
-		{Label: "基本スコア", Points: 100},
-	}
-
-	for _, r := range risks {
-		var points int
-		switch r.Severity {
-		case domain.SeverityHigh:
-			points = -10
-		case domain.SeverityMedium:
-			points = -5
-		case domain.SeverityLow:
-			points = -2
-		}
-		score += points
-		breakdown = append(breakdown, domain.ScoreBreakdownItem{
-			Label:  r.Type.DisplayName(),
-			Points: points,
-			Detail: formatRiskDetail(r),
-		})
-	}
-
-	return domain.NewScoreWithBreakdown(score, breakdown)
-}
-
-// calculateMetrics は各種メトリクスを計算する。
-func (s *Service) calculateMetrics(commits []Commit, contributors []Contributor, pullRequests []PullRequest, period domain.DateRange) domain.Metrics {
-	days := period.Days()
-	if days == 0 {
-		days = 1
-	}
-
-	// 深夜コミット率を計算
-	lateNightCount := 0
-	for _, c := range commits {
-		hour := c.Date.Hour()
-		if hour >= 22 || hour < 5 {
-			lateNightCount++
-		}
-	}
-	lateNightRate := 0.0
-	if len(commits) > 0 {
-		lateNightRate = float64(lateNightCount) / float64(len(commits)) * 100
-	}
-
-	// PRリードタイム（作成からマージまでの平均日数）を計算
-	avgLeadTime := s.calculateAvgLeadTime(pullRequests)
-
-	// PR内訳を計算
-	featureCount, bugFixCount, otherCount, bugFixRatio := s.calculatePRBreakdown(pullRequests)
-
-	return domain.Metrics{
-		TotalCommits:        len(commits),
-		FeatureAdditionRate: float64(len(commits)) / float64(days),
-		BugFixRatio:         bugFixRatio,
-		FeaturePRCount:      featureCount,
-		BugFixPRCount:       bugFixCount,
-		OtherPRCount:        otherCount,
-		TotalContributors:   len(contributors),
-		LateNightCommitRate: lateNightRate,
-		AvgLeadTime:         avgLeadTime,
-	}
-}
-
-// calculatePRBreakdown はマージ済みPRの内訳を計算する。
-func (s *Service) calculatePRBreakdown(pullRequests []PullRequest) (feature, bugfix, other int, bugFixRatio float64) {
-	for _, pr := range pullRequests {
-		if pr.MergedAt != nil { // マージ済みのみ
-			if pr.IsFeature() {
-				feature++
-			} else if pr.IsBugFix() {
-				bugfix++
-			} else {
-				other++
-			}
-		}
-	}
-
-	total := feature + bugfix + other
-	if total == 0 {
-		return 0, 0, 0, 0
-	}
-
-	bugFixRatio = float64(bugfix) / float64(total) * 100
-	return
-}
-
-// calculateAvgLeadTime はマージ済みPRの平均リードタイム（日数）を計算する。
-func (s *Service) calculateAvgLeadTime(pullRequests []PullRequest) float64 {
-	var totalLeadTime float64
-	var mergedCount int
-
-	for _, pr := range pullRequests {
-		leadTime := pr.LeadTime()
-		if leadTime >= 0 { // マージ済みのみ
-			totalLeadTime += leadTime
-			mergedCount++
-		}
-	}
-
-	if mergedCount == 0 {
-		return 0
-	}
-
-	return totalLeadTime / float64(mergedCount)
-}
-
-// aggregateDailyCommits はコミットを日別に集計する。
-func (s *Service) aggregateDailyCommits(commits []Commit, period domain.DateRange) []domain.DailyCommit {
-	// 日付ごとのコミット数をカウント
-	countByDate := make(map[string]int)
-	for _, c := range commits {
-		dateKey := c.Date.Format("2006-01-02")
-		countByDate[dateKey]++
-	}
-
-	// 期間内の全日付を生成（コミットがない日も0として含める）
-	var result []domain.DailyCommit
-	current := period.From
-	for !current.After(period.To) {
-		dateKey := current.Format("2006-01-02")
-		result = append(result, domain.DailyCommit{
-			Date:  current,
-			Count: countByDate[dateKey],
-		})
-		current = current.AddDate(0, 0, 1)
-	}
-
-	return result
 }
