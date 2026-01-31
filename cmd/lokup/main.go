@@ -47,8 +47,11 @@ func run() error {
 		return err
 	}
 
-	// GitHub トークン取得（GITHUB_TOKEN → gh auth token → なし）
-	token := resolveGitHubToken()
+	// GitHub トークン取得（GITHUB_TOKEN → gh auth token → エラー）
+	token, err := resolveGitHubToken()
+	if err != nil {
+		return err
+	}
 
 	fmt.Printf("Lokup - GitHub Repository Health Check\n\n")
 	fmt.Printf("Repository: %s/%s\n", config.Owner, config.Repo)
@@ -237,11 +240,11 @@ func parseRepository(s string) (owner, repo string, err error) {
 }
 
 // resolveGitHubToken は GitHub トークンを取得する。
-// 優先順位: GITHUB_TOKEN 環境変数 → gh auth token コマンド → 空文字（警告表示）
-func resolveGitHubToken() string {
+// 優先順位: GITHUB_TOKEN 環境変数 → gh auth token コマンド → エラー
+func resolveGitHubToken() (string, error) {
 	// 1. 環境変数
 	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
-		return token
+		return token, nil
 	}
 
 	// 2. gh auth token
@@ -249,13 +252,10 @@ func resolveGitHubToken() string {
 	if err == nil {
 		token := strings.TrimSpace(string(out))
 		if token != "" {
-			fmt.Fprintln(os.Stderr, "Using token from GitHub CLI (gh auth token).")
-			return token
+			return token, nil
 		}
 	}
 
-	// 3. トークンなし
-	fmt.Fprintln(os.Stderr, "Warning: No GitHub token found. API rate limits will be restricted (60 req/hour).")
-	fmt.Fprintln(os.Stderr, "  Set GITHUB_TOKEN or run 'gh auth login' to authenticate.")
-	return ""
+	// 3. 認証なし → エラー
+	return "", errors.New("GitHub authentication required.\n\n  Option 1: gh auth login\n  Option 2: export GITHUB_TOKEN=ghp_xxxxx...")
 }

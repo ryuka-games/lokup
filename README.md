@@ -24,9 +24,9 @@ lokup facebook/react --days 90
 lokup facebook/react --output my-report.html
 ```
 
-### GitHub 認証
+### GitHub 認証（必須）
 
-APIレート制限の緩和（60回/時 → 5,000回/時）のため、認証を推奨します。
+GitHub APIを使用するため、認証が必要です。
 
 **方法1: GitHub CLI（推奨）**
 
@@ -45,7 +45,7 @@ export GITHUB_TOKEN=ghp_xxxxx...
 lokup facebook/react
 ```
 
-トークンの優先順位: `GITHUB_TOKEN` 環境変数 → `gh auth token` → なし（警告表示）
+トークンの優先順位: `GITHUB_TOKEN` 環境変数 → `gh auth token`
 
 ## レポート例
 

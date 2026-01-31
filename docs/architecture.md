@@ -4,21 +4,18 @@ Lokup の処理フローと設計を図解する。
 
 ## GitHub 認証フロー
 
-トークン取得の優先順位: `GITHUB_TOKEN` 環境変数 → `gh auth token` → なし（警告）
+トークン取得の優先順位: `GITHUB_TOKEN` 環境変数 → `gh auth token` → エラー終了
 
 ```mermaid
 flowchart TD
     A[Lokup 起動] --> B{GITHUB_TOKEN\n環境変数あり?}
     B -- Yes --> C[環境変数のトークンを使用]
-    B -- No --> D{gh CLI\nインストール済み?}
-    D -- Yes --> E["exec: gh auth token"]
-    D -- No --> G
-    E --> F{トークン取得成功?}
-    F -- Yes --> H["トークンを使用\n(5,000 req/hour)"]
-    F -- No --> G["トークンなしで実行\n(60 req/hour)\n⚠️ 警告表示"]
-    C --> I[GitHub API 呼び出し]
-    H --> I
-    G --> I
+    B -- No --> D["exec: gh auth token"]
+    D --> E{トークン取得成功?}
+    E -- Yes --> F["トークンを使用\n(5,000 req/hour)"]
+    E -- No --> G["❌ エラー終了\ngh auth login\nまたは GITHUB_TOKEN を案内"]
+    C --> H[GitHub API 呼び出し]
+    F --> H
 ```
 
 ### 事前準備（ユーザー側）
