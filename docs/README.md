@@ -8,6 +8,8 @@
 | [requirements.md](./requirements.md) | 機能要件詳細 |
 | [ui-design.md](./ui-design.md) | 画面設計・導線 |
 | [testing-strategy.md](./testing-strategy.md) | テスト戦略 |
+| [architecture.md](./architecture.md) | アーキテクチャ（認証フロー・分析フロー・ファイル構成） |
+| [metrics.md](./metrics.md) | メトリクス仕様（DORA・スコア・リスク検出） |
 
 ## ADR（意思決定記録）
 
