@@ -76,6 +76,12 @@ type TemplateData struct {
 	PeriodTo   string
 	PeriodDays int
 
+	// 総合スコア
+	OverallScore      int
+	OverallGrade      string
+	OverallGradeClass string
+	OverallDiagnosis  string
+
 	// カテゴリスコア
 	Categories []CategoryScoreData
 
@@ -285,11 +291,18 @@ func (s *Service) prepareTemplateData(r *domain.AnalysisResult) TemplateData {
 	hourlyCommitsJSON := s.marshalHourlyCommits(r.HourlyCommits)
 	trendsJSON := s.marshalTrends(r.Trends)
 
+	overallGrade := r.OverallScore.Grade()
+
 	return TemplateData{
 		Repository: r.Repository.FullName(),
 		PeriodFrom: r.Period.From.Format("2006-01-02"),
 		PeriodTo:   r.Period.To.Format("2006-01-02"),
 		PeriodDays: r.Period.Days(),
+
+		OverallScore:      r.OverallScore.Value,
+		OverallGrade:      overallGrade,
+		OverallGradeClass: "grade-" + strings.ToLower(overallGrade),
+		OverallDiagnosis:  generateOverallDiagnosis(overallGrade, categories),
 
 		Categories: categories,
 
@@ -461,6 +474,32 @@ func riskTypeToAction(rt domain.RiskType) string {
 		return action
 	}
 	return "詳細を確認し、改善策を検討してください。"
+}
+
+// generateOverallDiagnosis は総合グレードに基づく一行診断を返す。
+func generateOverallDiagnosis(grade string, categories []CategoryScoreData) string {
+	// 最低スコアのカテゴリを特定
+	worstName := ""
+	worstScore := 101
+	for _, c := range categories {
+		if c.Score < worstScore {
+			worstScore = c.Score
+			worstName = c.Name
+		}
+	}
+
+	switch grade {
+	case "A":
+		return "全体的に良好な状態です。"
+	case "B":
+		return fmt.Sprintf("概ね良好ですが、%sに改善の余地があります。", worstName)
+	case "C":
+		return fmt.Sprintf("%sを中心に改善が必要です。", worstName)
+	case "D":
+		return fmt.Sprintf("%sに重大な課題があります。早急な対応を推奨します。", worstName)
+	default:
+		return "診断データがありません。"
+	}
 }
 
 // formatDateWithWeekday は日付を "1/25(土)" 形式でフォーマットする。

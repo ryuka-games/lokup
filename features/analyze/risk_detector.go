@@ -451,6 +451,18 @@ func (s *Service) calculateCategoryScores(risks []domain.Risk) map[domain.Catego
 	return scores
 }
 
+// calculateOverallScore はカテゴリ別スコアの平均から総合スコアを計算する。
+func calculateOverallScore(categoryScores map[domain.Category]domain.CategoryScore) domain.Score {
+	if len(categoryScores) == 0 {
+		return domain.NewScore(0)
+	}
+	total := 0
+	for _, cs := range categoryScores {
+		total += cs.Score.Value
+	}
+	return domain.NewScore(total / len(categoryScores))
+}
+
 // generateDiagnosis はカテゴリスコアに応じた一行診断テキストを生成する。
 func generateDiagnosis(cat domain.Category, score domain.Score, worstRisk *domain.Risk) string {
 	if score.Grade() == "A" {

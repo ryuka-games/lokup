@@ -138,6 +138,9 @@ func (s *Service) Analyze(ctx context.Context, input ServiceInput) (*domain.Anal
 	// 5. カテゴリ別スコア計算
 	categoryScores := s.calculateCategoryScores(risks)
 
+	// 5b. 総合スコア計算
+	overallScore := calculateOverallScore(categoryScores)
+
 	// 6. 日別コミット数を集計
 	dailyCommits := s.aggregateDailyCommits(commits, input.Period)
 
@@ -153,6 +156,7 @@ func (s *Service) Analyze(ctx context.Context, input ServiceInput) (*domain.Anal
 		Repository:         input.Repository,
 		Period:             input.Period,
 		CategoryScores:     categoryScores,
+		OverallScore:       overallScore,
 		Risks:              risks,
 		Metrics:            metrics,
 		DailyCommits:       dailyCommits,

@@ -59,6 +59,7 @@ type AnalysisResult struct {
 	Repository      Repository                // 対象リポジトリ
 	Period          DateRange                 // 分析期間
 	CategoryScores  map[Category]CategoryScore // カテゴリ別スコア
+	OverallScore    Score                     // 総合スコア（カテゴリ平均）
 	Risks           []Risk                    // 検出されたリスク
 	Metrics         Metrics                   // 各種メトリクス
 	DailyCommits    []DailyCommit             // 日別コミット数

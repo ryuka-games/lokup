@@ -28,11 +28,10 @@ Thumbs.db
 
 # Output files
 report.html
-*.html
 
 # Environment
 .env
 .env.local
 
-# Claude Code local settings
-.claude/
+# Claude Code local settings (keep skills tracked)
+.claude/settings.local.json

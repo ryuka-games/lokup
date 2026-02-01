@@ -1,0 +1,1291 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lokup レポート - {{.Repository}}</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; padding: 40px 20px; text-align: center;
+        }
+        header h1 { font-size: 2.5rem; margin-bottom: 10px; }
+        header .subtitle { opacity: 0.9; font-size: 1.1rem; }
+        .meta {
+            display: flex; justify-content: center; gap: 30px;
+            margin-top: 20px; font-size: 0.95rem;
+        }
+        .section {
+            background: white; border-radius: 12px; padding: 30px;
+            margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .section h2 {
+            font-size: 1.5rem; margin-bottom: 20px;
+            padding-bottom: 10px; border-bottom: 2px solid #eee;
+        }
+
+        /* Overall Grade */
+        .overall-grade.grade-a { color: #22c55e; }
+        .overall-grade.grade-b { color: #84cc16; }
+        .overall-grade.grade-c { color: #eab308; }
+        .overall-grade.grade-d { color: #ef4444; }
+
+        /* Section-level Details (Level 3 progressive disclosure) */
+        .section-details {
+            background: white; border-radius: 12px;
+            margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+        .section-summary {
+            display: flex; align-items: center; gap: 12px;
+            padding: 20px 30px; cursor: pointer;
+            font-size: 1.1rem; list-style: none;
+            user-select: none;
+        }
+        .section-summary::-webkit-details-marker { display: none; }
+        .section-summary::before {
+            content: '▶'; font-size: 0.8rem; color: #999;
+            transition: transform 0.2s;
+        }
+        .section-details[open] > .section-summary::before {
+            transform: rotate(90deg);
+        }
+        .section-summary .summary-name {
+            font-weight: 600; flex: 1; font-size: 1.2rem;
+        }
+        .section-summary .cat-score-badge {
+            font-size: 1rem; font-weight: bold;
+            padding: 4px 14px; border-radius: 20px;
+        }
+
+        /* Category Score Cards */
+        .category-scores {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 20px;
+        }
+        .category-card {
+            background: #f8f9fa; border-radius: 10px; padding: 20px;
+            text-align: center; border-top: 4px solid #ddd;
+        }
+        .category-card.grade-a { border-top-color: #22c55e; }
+        .category-card.grade-b { border-top-color: #84cc16; }
+        .category-card.grade-c { border-top-color: #eab308; }
+        .category-card.grade-d { border-top-color: #ef4444; }
+        .category-card .cat-icon { font-size: 1.5rem; }
+        .category-card .cat-name { font-size: 0.9rem; color: #666; margin-top: 4px; }
+        .category-card .cat-score {
+            font-size: 2.5rem; font-weight: bold; margin: 8px 0;
+        }
+        .cat-score.grade-a { color: #22c55e; }
+        .cat-score.grade-b { color: #84cc16; }
+        .cat-score.grade-c { color: #eab308; }
+        .cat-score.grade-d { color: #ef4444; }
+        .category-card .cat-grade { font-size: 1rem; color: #666; }
+        .category-card .cat-diagnosis {
+            font-size: 0.85rem; color: #888; margin-top: 10px;
+            line-height: 1.5;
+        }
+
+        /* Category Detail Section */
+        .category-section {
+            background: white; border-radius: 12px; padding: 30px;
+            margin: 20px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .category-header {
+            display: flex; align-items: center; gap: 12px;
+            margin-bottom: 8px;
+        }
+        .category-header .cat-icon { font-size: 1.5rem; }
+        .category-header h2 {
+            font-size: 1.5rem; margin: 0; padding: 0; border: none;
+        }
+        .category-header .cat-score-badge {
+            margin-left: auto; font-size: 1.2rem; font-weight: bold;
+            padding: 4px 12px; border-radius: 20px; background: #f0f0f0;
+        }
+        .cat-score-badge.grade-a { background: #dcfce7; color: #166534; }
+        .cat-score-badge.grade-b { background: #ecfccb; color: #3f6212; }
+        .cat-score-badge.grade-c { background: #fef9c3; color: #854d0e; }
+        .cat-score-badge.grade-d { background: #fecaca; color: #991b1b; }
+        .category-diagnosis {
+            color: #666; margin-bottom: 20px; font-size: 0.95rem;
+            padding-bottom: 15px; border-bottom: 1px solid #eee;
+        }
+
+        /* Metric Details Card */
+        details.metric-detail {
+            margin: 10px 0; border: 1px solid #e5e7eb; border-radius: 8px;
+            overflow: hidden;
+        }
+        details.metric-detail summary {
+            display: flex; align-items: center; padding: 14px 18px;
+            cursor: pointer; background: #f8f9fa;
+            font-size: 0.95rem; list-style: none;
+            user-select: none;
+        }
+        details.metric-detail summary::-webkit-details-marker { display: none; }
+        details.metric-detail summary::before {
+            content: '▶'; margin-right: 10px; font-size: 0.7rem;
+            transition: transform 0.2s; color: #999;
+        }
+        details.metric-detail[open] summary::before {
+            transform: rotate(90deg);
+        }
+        details.metric-detail summary .metric-name {
+            font-weight: 600; flex: 1;
+        }
+        details.metric-detail summary .metric-value {
+            font-weight: bold; font-size: 1.1rem; margin-right: 12px;
+            color: #667eea;
+        }
+        details.metric-detail summary .metric-value.warning {
+            color: #ca8a04;
+        }
+        details.metric-detail summary .metric-status {
+            font-size: 1.1rem;
+        }
+        /* DORA Rating Badges */
+        .dora-badge {
+            font-size: 0.75rem !important; font-weight: bold;
+            padding: 2px 8px; border-radius: 10px;
+        }
+        .dora-elite { background: #dcfce7; color: #166534; }
+        .dora-high { background: #dbeafe; color: #1e40af; }
+        .dora-medium { background: #fef9c3; color: #854d0e; }
+        .dora-low { background: #fecaca; color: #991b1b; }
+        .dora-n\/a { background: #f3f4f6; color: #6b7280; }
+        /* Trend Arrows */
+        .trend-section { margin: 20px 0; }
+        .trend-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 8px 0; border-bottom: 1px solid #f0f0f0;
+        }
+        .trend-item:last-child { border-bottom: none; }
+        .trend-arrow { font-size: 1.2rem; width: 24px; text-align: center; }
+        .trend-arrow.up { color: #22c55e; }
+        .trend-arrow.down { color: #ef4444; }
+        .trend-arrow.same { color: #9ca3af; }
+        .trend-name { flex: 1; font-size: 0.9rem; color: #555; }
+        .trend-delta { font-size: 0.9rem; font-weight: bold; }
+        .trend-delta.up { color: #22c55e; }
+        .trend-delta.down { color: #ef4444; }
+        .trend-delta.same { color: #9ca3af; }
+        details.metric-detail .detail-content {
+            padding: 20px; border-top: 1px solid #e5e7eb;
+        }
+        .detail-section { margin-bottom: 16px; }
+        .detail-section:last-child { margin-bottom: 0; }
+        .detail-section h4 {
+            font-size: 0.9rem; color: #667eea; margin-bottom: 8px;
+        }
+        .detail-section p {
+            font-size: 0.9rem; color: #555; line-height: 1.6;
+        }
+        .detail-section ul {
+            margin: 0; padding-left: 20px;
+        }
+        .detail-section li {
+            font-size: 0.9rem; color: #555; line-height: 1.8;
+        }
+        .detail-chart {
+            position: relative; height: 250px; margin: 10px 0;
+        }
+        .detail-table {
+            width: 100%; border-collapse: collapse;
+            font-size: 0.85rem; margin-top: 8px;
+        }
+        .detail-table th {
+            text-align: left; padding: 8px; background: #f8f9fa;
+            border-bottom: 2px solid #eee; font-weight: 600; color: #666;
+        }
+        .detail-table td {
+            padding: 8px; border-bottom: 1px solid #eee;
+        }
+        .detail-table .risk-icon { width: 40px; text-align: center; }
+        .detail-table .file-path { word-break: break-all; color: #333; }
+        .detail-table .file-size { text-align: right; color: #666; }
+
+        /* Score Breakdown */
+        .score-breakdown { margin-top: 15px; }
+        .score-breakdown table { width: 100%; font-size: 0.85rem; }
+        .score-breakdown td { padding: 4px 0; }
+        .score-breakdown .points { text-align: right; font-weight: bold; }
+        .score-breakdown .positive .points { color: #22c55e; }
+        .score-breakdown .negative .points { color: #ef4444; }
+        .score-breakdown .total {
+            border-top: 1px solid #ddd; font-weight: bold;
+        }
+        .score-breakdown .total td { padding-top: 8px; }
+        .score-breakdown .detail { color: #999; font-size: 0.8rem; }
+
+        /* AI Comment Section */
+        .ai-hero-insight {
+            background: linear-gradient(135deg, #f0f4ff 0%, #e8ecff 100%);
+            border: 1px solid #c7d2fe;
+            border-radius: 10px; padding: 24px;
+            margin-bottom: 20px; text-align: center;
+        }
+        .ai-hero-insight .ai-hero-label {
+            font-size: 0.8rem; color: #667eea; font-weight: 600;
+            text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+        }
+        .ai-hero-insight .ai-hero-text {
+            font-size: 1.15rem; font-weight: 600; color: #333; line-height: 1.6;
+        }
+        .ai-hero-insight .ai-hero-action {
+            display: inline-block; margin-top: 12px;
+            font-size: 0.9rem; color: #667eea; font-weight: 500;
+        }
+        .ai-insight-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 14px; margin-bottom: 20px;
+        }
+        .ai-insight-card {
+            border-radius: 8px; padding: 16px;
+            border-left: 4px solid #ddd;
+        }
+        .ai-insight-card.good { background: #f0fdf4; border-left-color: #22c55e; }
+        .ai-insight-card.warn { background: #fffbeb; border-left-color: #eab308; }
+        .ai-insight-card.bad { background: #fef2f2; border-left-color: #ef4444; }
+        .ai-insight-card .ai-card-icon { font-size: 1.2rem; margin-bottom: 4px; }
+        .ai-insight-card .ai-card-title {
+            font-size: 0.85rem; color: #888; margin-bottom: 4px;
+        }
+        .ai-insight-card .ai-card-value {
+            font-size: 1.3rem; font-weight: bold; color: #333;
+        }
+        .ai-insight-card .ai-card-note {
+            font-size: 0.82rem; color: #666; margin-top: 6px; line-height: 1.5;
+        }
+        .ai-actions { margin-bottom: 16px; }
+        .ai-actions h3 {
+            font-size: 0.95rem; color: #444; margin-bottom: 10px;
+        }
+        .ai-action-item {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 10px 14px; margin-bottom: 8px;
+            background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0;
+        }
+        .ai-action-item .ai-action-num {
+            font-size: 0.85rem; font-weight: bold; color: #fff;
+            background: #667eea; width: 22px; height: 22px;
+            border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; flex-shrink: 0; margin-top: 2px;
+        }
+        .ai-action-item .ai-action-text {
+            font-size: 0.9rem; color: #444; line-height: 1.6;
+        }
+        .ai-action-item .ai-action-text strong { color: #333; }
+        .ai-note-toggle summary {
+            font-size: 0.85rem; color: #999; cursor: pointer;
+            list-style: none; user-select: none;
+        }
+        .ai-note-toggle summary::-webkit-details-marker { display: none; }
+        .ai-note-toggle summary::before {
+            content: '▶ '; font-size: 0.7rem;
+        }
+        .ai-note-toggle[open] summary::before { content: '▼ '; }
+        .ai-note-toggle .ai-note-content {
+            margin-top: 10px; font-size: 0.85rem; color: #777;
+            line-height: 1.7; padding: 12px; background: #f9fafb;
+            border-radius: 6px;
+        }
+
+        /* Risk Section */
+        .risks-list { display: flex; flex-direction: column; gap: 15px; }
+        .risk-item {
+            display: flex; align-items: flex-start; gap: 15px;
+            padding: 15px; border-radius: 8px; background: #f8f9fa;
+        }
+        .risk-item.high { border-left: 4px solid #ef4444; }
+        .risk-item.medium { border-left: 4px solid #eab308; }
+        .risk-item.low { border-left: 4px solid #22c55e; }
+        .risk-icon { font-size: 1.5rem; }
+        .risk-content h4 { font-size: 1rem; margin-bottom: 5px; }
+        .risk-content p { font-size: 0.9rem; color: #666; }
+        .risk-content .risk-action {
+            margin-top: 10px; padding: 10px; background: #f0f9ff;
+            border-radius: 6px; color: #0369a1; font-size: 0.85rem;
+        }
+        .no-risks {
+            text-align: center; padding: 40px; color: #22c55e; font-size: 1.1rem;
+        }
+
+        /* Chart */
+        .chart-container {
+            position: relative; height: 300px; margin-top: 20px;
+        }
+        footer {
+            text-align: center; padding: 30px; color: #999; font-size: 0.85rem;
+        }
+        @media (max-width: 768px) {
+            header h1 { font-size: 1.8rem; }
+            .meta { flex-direction: column; gap: 10px; }
+            .category-scores { grid-template-columns: 1fr 1fr; }
+            .cat-score { font-size: 2rem !important; }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>{{.Repository}}</h1>
+        <p class="subtitle">GitHub リポジトリ健康診断レポート</p>
+        <div class="meta">
+            <span>分析期間: {{.PeriodFrom}} ~ {{.PeriodTo}} ({{.PeriodDays}}日間)</span>
+            <span>生成日時: {{.GeneratedAt}}</span>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Level 1: Hero - Overall Grade -->
+        <section class="section" style="text-align:center; padding: 40px 30px;">
+            <div class="overall-grade {{.OverallGradeClass}}" style="font-size: 5rem; font-weight: bold; line-height: 1;">{{.OverallGrade}}</div>
+            <div style="font-size: 1.3rem; color: #666; margin-top: 8px;">総合スコア: {{.OverallScore}} / 100</div>
+            <div style="font-size: 1.05rem; color: #888; margin-top: 12px;">{{.OverallDiagnosis}}</div>
+        </section>
+
+        <!-- Level 2: Category Score Cards (simple) -->
+        <section class="section">
+            <div class="category-scores">
+                {{range .Categories}}
+                <div class="category-card {{.GradeClass}}">
+                    <div class="cat-icon">{{.Icon}}</div>
+                    <div class="cat-name">{{.Name}}</div>
+                    <div class="cat-score {{.GradeClass}}">{{.Score}}</div>
+                    <div class="cat-grade">グレード {{.Grade}}</div>
+                    <div class="cat-diagnosis">{{.Diagnosis}}</div>
+                </div>
+                {{end}}
+            </div>
+        </section>
+
+        <!-- Risks Summary (カテゴリ診断の結果まとめ) -->
+        {{if .HasRisks}}
+        <section class="section">
+            <h2>🚨 検出されたリスク（{{len .Risks}}件）</h2>
+            <div class="risks-list">
+                {{range .Risks}}
+                <div class="risk-item {{.Severity}}">
+                    <span class="risk-icon">{{.SeverityIcon}}</span>
+                    <div class="risk-content">
+                        <h4>{{.Type}}</h4>
+                        <p>{{.Description}}</p>
+                        {{if .Target}}<p><strong>対象:</strong> {{.Target}}</p>{{end}}
+                        <p class="risk-action">💡 {{.Action}}</p>
+                    </div>
+                </div>
+                {{end}}
+            </div>
+        </section>
+        {{end}}
+
+        <!-- Level 3: Expandable Detail Sections -->
+
+        <!-- 📈 開発速度 -->
+        <details class="section-details">
+        <summary class="section-summary">
+            {{range .Categories}}{{if eq .CategoryID "velocity"}}
+            <span class="cat-icon">{{.Icon}}</span>
+            <span class="summary-name">{{.Name}}</span>
+            <span class="cat-score-badge {{.GradeClass}}">{{.Score}} / {{.Grade}}</span>
+            {{end}}{{end}}
+        </summary>
+        <section class="category-section" style="box-shadow:none; margin:0; padding: 20px 30px;">
+            {{range .Categories}}{{if eq .CategoryID "velocity"}}
+            <p class="category-diagnosis">{{.Diagnosis}}</p>
+            {{end}}{{end}}
+
+            <!-- スコア内訳 -->
+            {{range .Categories}}{{if eq .CategoryID "velocity"}}
+            {{if .Breakdown}}
+            <div class="score-breakdown" style="margin-bottom: 20px;">
+                <h4 style="font-size: 0.9rem; color: #667eea; margin-bottom: 8px;">スコア内訳</h4>
+                <table>
+                    {{range .Breakdown}}
+                    <tr class="{{if gt .Points 0}}positive{{else if lt .Points 0}}negative{{end}}">
+                        <td>{{.Label}}</td>
+                        <td class="points">{{if gt .Points 0}}+{{end}}{{.Points}}</td>
+                    </tr>
+                    {{if .Detail}}<tr><td colspan="2" class="detail">{{.Detail}}</td></tr>{{end}}
+                    {{end}}
+                </table>
+            </div>
+            {{end}}
+            {{end}}{{end}}
+
+            <!-- PRリードタイム -->
+            <details class="metric-detail" data-chart="leadtime">
+                <summary>
+                    <span class="metric-name">PRリードタイム</span>
+                    <span class="metric-value {{if ge .AvgLeadTime 7.0}}warning{{end}}">{{printf "%.1f" .AvgLeadTime}}日</span>
+                    <span class="metric-status">{{if ge .AvgLeadTime 7.0}}🟡{{else if ge .AvgLeadTime 3.0}}🟢{{else}}🟢{{end}}</span>
+                </summary>
+                <div class="detail-content">
+                    <div class="detail-section">
+                        <h4>📋 診断</h4>
+                        <p>PR作成からマージまでの平均日数は <strong>{{printf "%.1f" .AvgLeadTime}}日</strong> です。基準: 3日以下が良好 / 7日以上で警告。</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>📊 PR別リードタイム</h4>
+                        <div class="detail-chart"><canvas id="chart-leadtime"></canvas></div>
+                    </div>
+                    <div class="detail-section">
+                        <h4>🔥 放置すると？</h4>
+                        <ul>
+                            <li>コンフリクトが頻発する</li>
+                            <li>開発者のモチベーションが低下</li>
+                            <li>コンテキストスイッチが増える</li>
+                        </ul>
+                    </div>
+                    <div class="detail-section">
+                        <h4>💡 改善提案</h4>
+                        <ul>
+                            <li>PRを小さく分割する（200行以下目標）</li>
+                            <li>レビュー担当をローテーションで明確化</li>
+                            <li>レビュー時間をカレンダーで確保</li>
+                        </ul>
+                    </div>
+                </div>
+            </details>
+
+            <!-- コミット頻度 -->
+            <details class="metric-detail" data-chart="commits">
+                <summary>
+                    <span class="metric-name">コミット頻度</span>
+                    <span class="metric-value">{{printf "%.2f" .FeatureAddition}}/日</span>
+                    <span class="metric-status">{{if ge .FeatureAddition 2.0}}🟢{{else if ge .FeatureAddition 0.5}}🟢{{else}}🟡{{end}}</span>
+                </summary>
+                <div class="detail-content">
+                    <div class="detail-section">
+                        <h4>📋 診断</h4>
+                        <p>1日あたり平均 <strong>{{printf "%.2f" .FeatureAddition}}</strong> コミットです。基準: 2以上が活発 / 0.5未満で低調。期間中の総コミット数: {{.TotalCommits}}件。</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>📊 日別コミット推移</h4>
+                        <div class="detail-chart"><canvas id="chart-daily-commits"></canvas></div>
+                    </div>
+                    <div class="detail-section">
+                        <h4>💡 改善提案</h4>
+                        <ul>
+                            <li>極端に少ない場合: 開発が停滞している可能性</li>
+                            <li>急激な増加: リリース前の駆け込みかも</li>
+                            <li>週末に多い: 過負荷の兆候</li>
+                        </ul>
+                    </div>
+                </div>
+            </details>
+
+            <!-- レビュー待ち時間 -->
+            <details class="metric-detail" data-chart="reviewwait">
+                <summary>
+                    <span class="metric-name">レビュー待ち時間</span>
+                    <span class="metric-value {{if ge .AvgReviewWaitTime 48.0}}warning{{end}}">{{printf "%.1f" .AvgReviewWaitTime}}h</span>
+                    <span class="metric-status">{{if ge .AvgReviewWaitTime 48.0}}🟡{{else}}🟢{{end}}</span>
+                </summary>
+                <div class="detail-content">
+                    <div class="detail-section">
+                        <h4>📋 診断</h4>
+                        <p>PR作成から最初のレビューまでの平均時間は <strong>{{printf "%.1f" .AvgReviewWaitTime}}時間</strong> です。基準: 24h以内が良好 / 48h以上で警告。</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>📊 PR別レビュー待ち時間</h4>
+                        <div class="detail-chart"><canvas id="chart-reviewwait"></canvas></div>
+                    </div>
+                    <div class="detail-section">
+                        <h4>💡 改善提案</h4>
+                        <ul>
+                            <li>レビュー担当者をPR作成時に指定</li>
+                            <li>Slackへの通知で見逃し防止</li>
+                            <li>毎日のレビュータイムを確保（朝一番など）</li>
+                        </ul>
+                    </div>
+                </div>
+            </details>
+
+            <!-- オープン PR/Issue -->
+            <details class="metric-detail">
+                <summary>
+                    <span class="metric-name">オープン PR/Issue</span>
+                    <span class="metric-value">{{.OpenPRCount}} / {{.OpenIssueCount}}</span>
+                    <span class="metric-status">🔵</span>
+                </summary>
+                <div class="detail-content">
+                    <div class="detail-section">
+                        <h4>📋 診断</h4>
+                        <p>現在オープン中: PR <strong>{{.OpenPRCount}}件</strong> / Issue <strong>{{.OpenIssueCount}}件</strong>。滞留タスクの量を示します。</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>💡 改善提案</h4>
+                        <ul>
+                            <li>週次でオープン数をモニタリング</li>
+                            <li>古いPR/Issueは定期的にトリアージ</li>
+                            <li>優先度ラベルを活用して整理</li>
+                        </ul>
+                    </div>
+                </div>
+            </details>
+
+            <!-- DORA: デプロイ頻度 -->
+            <details class="metric-detail">
+                <summary>
+                    <span class="metric-name">デプロイ頻度 (DORA)</span>
+                    <span class="metric-value">{{printf "%.1f" .DeployFrequency}}/月</span>
+                    <span class="metric-status dora-badge dora-{{lower .DeployFreqRating}}">{{.DeployFreqRating}}</span>
+                </summary>
+                <div class="detail-content">
+                    <div class="detail-section">
+                        <h4>📋 診断</h4>
+                        <p>期間中のデプロイ頻度は <strong>月{{printf "%.1f" .DeployFrequency}}回</strong> です。DORAレーティング: <strong>{{.DeployFreqRating}}</strong>（Elite: 毎日 / High: 週1回 / Medium: 月1回 / Low: 月1回未満）</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>💡 改善提案</h4>
+                        <ul>
+                            <li>CI/CDパイプラインを整備して自動デプロイ</li>
+                            <li>小さなリリースを頻繁に行う文化を構築</li>
+                            <li>フィーチャーフラグでリスクを軽減</li>
+                        </ul>
+                    </div>
+                </div>
+            </details>
+
+            <!-- DORA: MTTR -->
+            <details class="metric-detail">
+                <summary>
+                    <span class="metric-name">平均復旧時間 (DORA)</span>
+                    <span class="metric-value">{{printf "%.1f" .MTTR}}h</span>
+                    <span class="metric-status dora-badge dora-{{lower .MTTRRating}}">{{.MTTRRating}}</span>
+                </summary>
+                <div class="detail-content">
+                    <div class="detail-section">
+                        <h4>📋 診断</h4>
+                        <p>障害からの平均復旧時間は <strong>{{printf "%.1f" .MTTR}}時間</strong> です。DORAレーティング: <strong>{{.MTTRRating}}</strong>（Elite: 1h未満 / High: 24h未満 / Medium: 1週間未満 / Low: 1週間以上）</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>💡 改善提案</h4>
+                        <ul>
+                            <li>ロールバック手順を自動化する</li>
+                            <li>インシデント対応のランブックを整備</li>
+                            <li>障害検知の自動アラートを設定</li>
+                        </ul>
+                    </div>
+                </div>
+            </details>
+        </section>
+        </details>
+
+        <!-- ✅ コード品質 -->
+        <details class="section-details">
+        <summary class="section-summary">
+            {{range .Categories}}{{if eq .CategoryID "quality"}}
+            <span class="cat-icon">{{.Icon}}</span>
+            <span class="summary-name">{{.Name}}</span>
+            <span class="cat-score-badge {{.GradeClass}}">{{.Score}} / {{.Grade}}</span>
+            {{end}}{{end}}
+        </summary>
+        <section class="category-section" style="box-shadow:none; margin:0; padding: 20px 30px;">
+            {{range .Categories}}{{if eq .CategoryID "quality"}}
+            <p class="category-diagnosis">{{.Diagnosis}}</p>
+            {{end}}{{end}}
+
+            <!-- スコア内訳 -->
+            {{range .Categories}}{{if eq .CategoryID "quality"}}
+            {{if .Breakdown}}
+            <div class="score-breakdown" style="margin-bottom: 20px;">
+                <h4 style="font-size: 0.9rem; color: #667eea; margin-bottom: 8px;">スコア内訳</h4>
+                <table>
+                    {{range .Breakdown}}
+                    <tr class="{{if gt .Points 0}}positive{{else if lt .Points 0}}negative{{end}}">
+                        <td>{{.Label}}</td>
+                        <td class="points">{{if gt .Points 0}}+{{end}}{{.Points}}</td>
+                    </tr>
+                    {{if .Detail}}<tr><td colspan="2" class="detail">{{.Detail}}</td></tr>{{end}}
+                    {{end}}
+                </table>
+            </div>
+            {{end}}
+            {{end}}{{end}}
+
+            <!-- バグ修正割合 → 投資比率 (4分類) -->
+            <details class="metric-detail" data-chart="bugfix">
+                <summary>
+                    <span class="metric-name">投資比率（PR分類）</span>
+                    <span class="metric-value {{if ge .BugFixRatio 50.0}}warning{{end}}">Feature {{printf "%.0f" .FeatureRatio}}%</span>
+                    <span class="metric-status">{{if ge .BugFixRatio 50.0}}🟡{{else}}🟢{{end}}</span>
+                </summary>
+                <div class="detail-content">
+                    <div class="detail-section">
+                        <h4>📋 診断</h4>
+                        <p>マージ済みPRの投資比率: Feature <strong>{{.FeaturePRCount}}件 ({{printf "%.1f" .FeatureRatio}}%)</strong> / BugFix <strong>{{.BugFixPRCount}}件 ({{printf "%.1f" .BugFixRatio}}%)</strong> / Refactor <strong>{{.RefactorPRCount}}件 ({{printf "%.1f" .RefactorRatio}}%)</strong> / Other <strong>{{.OtherPRCount}}件</strong>。機能追加30%以上が目安です。</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>📊 PR種別内訳</h4>
+                        <div class="detail-chart"><canvas id="chart-bugfix"></canvas></div>
+                    </div>
+                    <div class="detail-section">
+                        <h4>💡 改善提案</h4>
+                        <ul>
+                            <li>テストを充実させてバグを事前に防ぐ</li>
+                            <li>技術的負債の返済と機能開発のバランスを見直す</li>
+                            <li>リファクタリングの時間を計画的に確保する</li>
+                        </ul>
+                    </div>
+                </div>
+            </details>
+
+            <!-- DORA: 変更失敗率 -->
+            <details class="metric-detail">
+                <summary>
+                    <span class="metric-name">変更失敗率 (DORA)</span>
+                    <span class="metric-value {{if ge .ChangeFailureRate 30.0}}warning{{end}}">{{printf "%.1f" .ChangeFailureRate}}%</span>
+                    <span class="metric-status dora-badge dora-{{lower .ChangeFailRating}}">{{.ChangeFailRating}}</span>
+                </summary>
+                <div class="detail-content">
+                    <div class="detail-section">
+                        <h4>📋 診断</h4>
+                        <p>変更失敗率は <strong>{{printf "%.1f" .ChangeFailureRate}}%</strong> です。DORAレーティング: <strong>{{.ChangeFailRating}}</strong>（Elite: 15%以下 / High: 30%以下 / Medium: 45%以下 / Low: 45%超）</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>💡 改善提案</h4>
+                        <ul>
+                            <li>リリース前のテスト自動化を強化</li>
+                            <li>ステージング環境での検証を徹底</li>
+                            <li>カナリアリリースでリスクを軽減</li>
+                        </ul>
+                    </div>
+                </div>
+            </details>
+
+            <!-- コードチャーン (Revert率) -->
+            <details class="metric-detail">
+                <summary>
+                    <span class="metric-name">コードチャーン（Revert率）</span>
+                    <span class="metric-value {{if ge .RevertRate 5.0}}warning{{end}}">{{printf "%.1f" .RevertRate}}%</span>
+                    <span class="metric-status">{{if ge .RevertRate 5.0}}🟡{{else}}🟢{{end}}</span>
+                </summary>
+                <div class="detail-content">
+                    <div class="detail-section">
+                        <h4>📋 診断</h4>
+                        <p>Revertコミットが <strong>{{.RevertCommitCount}}件</strong>（全体の{{printf "%.1f" .RevertRate}}%）です。手戻りの多さを示します。</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>💡 改善提案</h4>
+                        <ul>
+                            <li>PRレビューの品質を向上させる</li>
+                            <li>自動テストのカバレッジを上げる</li>
+                            <li>小さな変更を頻繁にリリースする</li>
+                        </ul>
+                    </div>
+                </div>
+            </details>
+
+            <!-- 変更集中 -->
+            <details class="metric-detail">
+                <summary>
+                    <span class="metric-name">変更集中（ホットスポット）</span>
+                    <span class="metric-value">{{len .ChangeConcentrationRisks}}件</span>
+                    <span class="metric-status">{{if gt (len .ChangeConcentrationRisks) 0}}🟡{{else}}🟢{{end}}</span>
+                </summary>
+                <div class="detail-content">
+                    <div class="detail-section">
+                        <h4>📋 診断</h4>
+                        <p>短期間に集中して変更されたファイルが <strong>{{len .ChangeConcentrationRisks}}件</strong> 検出されました。</p>
+                    </div>
+                    {{if .ChangeConcentrationRisks}}
+                    <div class="detail-section">
+                        <h4>📝 ホットスポット一覧</h4>
+                        <table class="detail-table">
+                            <thead><tr><th>リスク</th><th>ファイル</th><th>説明</th></tr></thead>
+                            <tbody>
+                                {{range .ChangeConcentrationRisks}}
+                                <tr>
+                                    <td class="risk-icon">{{.SeverityIcon}}</td>
+                                    <td class="file-path">{{.Target}}</td>
+                                    <td>{{.Description}}</td>
+                                </tr>
+                                {{end}}
+                            </tbody>
+                        </table>
+                    </div>
+                    {{end}}
+                    <div class="detail-section">
+                        <h4>💡 改善提案</h4>
+                        <ul>
+                            <li>頻繁に変更されるファイルの責務を分割する</li>
+                            <li>変更の原因を調査し、設計を見直す</li>
+                        </ul>
+                    </div>
+                </div>
+            </details>
+
+            <!-- PRサイズ -->
+            <details class="metric-detail" data-chart="prsize">
+                <summary>
+                    <span class="metric-name">平均PRサイズ</span>
+                    <span class="metric-value {{if geInt .AvgPRSize 500}}warning{{end}}">{{.AvgPRSize}}行</span>
+                    <span class="metric-status">{{if geInt .AvgPRSize 500}}🟡{{else}}🟢{{end}}</span>
+                </summary>
+                <div class="detail-content">
+                    <div class="detail-section">
+                        <h4>📋 診断</h4>
+                        <p>PRあたりの平均変更行数は <strong>{{.AvgPRSize}}行</strong> です。基準: 200行以下が良好 / 500行以上で警告。</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>📊 PR別変更行数</h4>
+                        <div class="detail-chart"><canvas id="chart-prsize"></canvas></div>
+                    </div>
+                    <div class="detail-section">
+                        <h4>💡 改善提案</h4>
+                        <ul>
+                            <li>1つのPRで1つの機能/修正に絞る</li>
+                            <li>リファクタリングと機能追加を分ける</li>
+                            <li>フィーチャーフラグで大きな機能を小分けにリリース</li>
+                        </ul>
+                    </div>
+                </div>
+            </details>
+
+            <!-- Issueクローズ率 -->
+            <details class="metric-detail" data-chart="issueclose">
+                <summary>
+                    <span class="metric-name">Issueクローズ率</span>
+                    <span class="metric-value {{if and (gt .IssuesCreated 0) (ltFloat .IssueCloseRate 50.0)}}warning{{end}}">{{printf "%.1f" .IssueCloseRate}}%</span>
+                    <span class="metric-status">{{if and (gt .IssuesCreated 0) (ltFloat .IssueCloseRate 50.0)}}🟡{{else}}🟢{{end}}</span>
+                </summary>
+                <div class="detail-content">
+                    <div class="detail-section">
+                        <h4>📋 診断</h4>
+                        <p>期間中の作成: <strong>{{.IssuesCreated}}件</strong> / クローズ: <strong>{{.IssuesClosed}}件</strong>（クローズ率 {{printf "%.1f" .IssueCloseRate}}%）。基準: 100%以上が良好 / 50%以下で警告。</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>📊 作成 vs クローズ</h4>
+                        <div class="detail-chart"><canvas id="chart-issueclose"></canvas></div>
+                    </div>
+                    <div class="detail-section">
+                        <h4>💡 改善提案</h4>
+                        <ul>
+                            <li>定期的なトリアージミーティングで優先度を整理</li>
+                            <li>対応しないものは「wontfix」でクローズ</li>
+                            <li>100%以上を維持（消化が追いつく状態）</li>
+                        </ul>
+                    </div>
+                </div>
+            </details>
+        </section>
+        </details>
+
+        <!-- ⚠️ 技術的負債 -->
+        <details class="section-details">
+        <summary class="section-summary">
+            {{range .Categories}}{{if eq .CategoryID "tech_debt"}}
+            <span class="cat-icon">{{.Icon}}</span>
+            <span class="summary-name">{{.Name}}</span>
+            <span class="cat-score-badge {{.GradeClass}}">{{.Score}} / {{.Grade}}</span>
+            {{end}}{{end}}
+        </summary>
+        <section class="category-section" style="box-shadow:none; margin:0; padding: 20px 30px;">
+            {{range .Categories}}{{if eq .CategoryID "tech_debt"}}
+            <p class="category-diagnosis">{{.Diagnosis}}</p>
+            {{end}}{{end}}
+
+            <!-- スコア内訳 -->
+            {{range .Categories}}{{if eq .CategoryID "tech_debt"}}
+            {{if .Breakdown}}
+            <div class="score-breakdown" style="margin-bottom: 20px;">
+                <h4 style="font-size: 0.9rem; color: #667eea; margin-bottom: 8px;">スコア内訳</h4>
+                <table>
+                    {{range .Breakdown}}
+                    <tr class="{{if gt .Points 0}}positive{{else if lt .Points 0}}negative{{end}}">
+                        <td>{{.Label}}</td>
+                        <td class="points">{{if gt .Points 0}}+{{end}}{{.Points}}</td>
+                    </tr>
+                    {{if .Detail}}<tr><td colspan="2" class="detail">{{.Detail}}</td></tr>{{end}}
+                    {{end}}
+                </table>
+            </div>
+            {{end}}
+            {{end}}{{end}}
+
+            <!-- 巨大ファイル -->
+            <details class="metric-detail">
+                <summary>
+                    <span class="metric-name">巨大ファイル</span>
+                    <span class="metric-value {{if gt .LargeFileCount 0}}warning{{end}}">{{.LargeFileCount}}件</span>
+                    <span class="metric-status">{{if gt .LargeFileCount 0}}🟡{{else}}🟢{{end}}</span>
+                </summary>
+                <div class="detail-content">
+                    <div class="detail-section">
+                        <h4>📋 診断</h4>
+                        <p>50KB以上のファイルが <strong>{{.LargeFileCount}}件</strong> あります。</p>
+                    </div>
+                    {{if .LargeFiles}}
+                    <div class="detail-section">
+                        <h4>📝 該当ファイル一覧</h4>
+                        <table class="detail-table">
+                            <thead><tr><th>リスク</th><th>ファイル</th><th>サイズ</th></tr></thead>
+                            <tbody>
+                                {{range .LargeFiles}}
+                                <tr>
+                                    <td class="risk-icon">{{if eq .SeverityStr "high"}}🔴{{else}}🟡{{end}}</td>
+                                    <td class="file-path">{{.Path}}</td>
+                                    <td class="file-size">{{.SizeKB}}KB</td>
+                                </tr>
+                                {{end}}
+                            </tbody>
+                        </table>
+                    </div>
+                    {{end}}
+                    <div class="detail-section">
+                        <h4>💡 改善提案</h4>
+                        <ul>
+                            <li>責務ごとにファイルを分割する</li>
+                            <li>共通処理を別モジュールに抽出</li>
+                            <li>100KB以上は優先的に対応</li>
+                        </ul>
+                    </div>
+                </div>
+            </details>
+
+            <!-- 古い依存 -->
+            <details class="metric-detail">
+                <summary>
+                    <span class="metric-name">古い依存</span>
+                    <span class="metric-value {{if gt .OutdatedDepCount 0}}warning{{end}}">{{.OutdatedDepCount}}件</span>
+                    <span class="metric-status">{{if gt .OutdatedDepCount 0}}🟡{{else}}🟢{{end}}</span>
+                </summary>
+                <div class="detail-content">
+                    <div class="detail-section">
+                        <h4>📋 診断</h4>
+                        <p>2年以上前の依存パッケージが <strong>{{.OutdatedDepCount}}件</strong> あります。</p>
+                    </div>
+                    {{if .OutdatedDeps}}
+                    <div class="detail-section">
+                        <h4>📝 該当パッケージ一覧</h4>
+                        <table class="detail-table">
+                            <thead><tr><th>リスク</th><th>パッケージ</th><th>バージョン</th><th>経過</th></tr></thead>
+                            <tbody>
+                                {{range .OutdatedDeps}}
+                                <tr>
+                                    <td class="risk-icon">{{if eq .SeverityStr "high"}}🔴{{else}}🟡{{end}}</td>
+                                    <td class="file-path">{{.Name}}</td>
+                                    <td>{{.Version}}</td>
+                                    <td class="file-size">{{.Age}}</td>
+                                </tr>
+                                {{end}}
+                            </tbody>
+                        </table>
+                    </div>
+                    {{end}}
+                    <div class="detail-section">
+                        <h4>💡 改善提案</h4>
+                        <ul>
+                            <li>Dependabot や Renovate を導入して自動更新</li>
+                            <li>3年以上のものは優先的に対応</li>
+                            <li>セキュリティ脆弱性のスキャンを定期実行</li>
+                        </ul>
+                    </div>
+                </div>
+            </details>
+        </section>
+        </details>
+
+        <!-- 💚 チーム健全性 -->
+        <details class="section-details">
+        <summary class="section-summary">
+            {{range .Categories}}{{if eq .CategoryID "health"}}
+            <span class="cat-icon">{{.Icon}}</span>
+            <span class="summary-name">{{.Name}}</span>
+            <span class="cat-score-badge {{.GradeClass}}">{{.Score}} / {{.Grade}}</span>
+            {{end}}{{end}}
+        </summary>
+        <section class="category-section" style="box-shadow:none; margin:0; padding: 20px 30px;">
+            {{range .Categories}}{{if eq .CategoryID "health"}}
+            <p class="category-diagnosis">{{.Diagnosis}}</p>
+            {{end}}{{end}}
+
+            <!-- スコア内訳 -->
+            {{range .Categories}}{{if eq .CategoryID "health"}}
+            {{if .Breakdown}}
+            <div class="score-breakdown" style="margin-bottom: 20px;">
+                <h4 style="font-size: 0.9rem; color: #667eea; margin-bottom: 8px;">スコア内訳</h4>
+                <table>
+                    {{range .Breakdown}}
+                    <tr class="{{if gt .Points 0}}positive{{else if lt .Points 0}}negative{{end}}">
+                        <td>{{.Label}}</td>
+                        <td class="points">{{if gt .Points 0}}+{{end}}{{.Points}}</td>
+                    </tr>
+                    {{if .Detail}}<tr><td colspan="2" class="detail">{{.Detail}}</td></tr>{{end}}
+                    {{end}}
+                </table>
+            </div>
+            {{end}}
+            {{end}}{{end}}
+
+            <!-- 深夜労働率 -->
+            <details class="metric-detail" data-chart="latenight">
+                <summary>
+                    <span class="metric-name">深夜労働率</span>
+                    <span class="metric-value {{if ge .LateNightRate 30.0}}warning{{end}}">{{printf "%.1f" .LateNightRate}}%</span>
+                    <span class="metric-status">{{if ge .LateNightRate 30.0}}🟡{{else}}🟢{{end}}</span>
+                </summary>
+                <div class="detail-content">
+                    <div class="detail-section">
+                        <h4>📋 診断</h4>
+                        <p>22:00〜翌5:00のコミット割合は <strong>{{printf "%.1f" .LateNightRate}}%</strong> です。基準: 10%以下が良好 / 30%以上で警告。</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>📊 時間帯別コミット分布</h4>
+                        <div class="detail-chart"><canvas id="chart-latenight"></canvas></div>
+                    </div>
+                    <div class="detail-section">
+                        <h4>💡 改善提案</h4>
+                        <ul>
+                            <li>スプリントの作業量を見直す</li>
+                            <li>人員を増やす or 作業を分散する</li>
+                            <li>日中の会議を減らし、集中タイムを確保</li>
+                        </ul>
+                    </div>
+                </div>
+            </details>
+
+            <!-- リポジトリ規模 -->
+            <details class="metric-detail">
+                <summary>
+                    <span class="metric-name">リポジトリ規模</span>
+                    <span class="metric-value">{{.TotalFiles}}ファイル / {{.Contributors}}人</span>
+                    <span class="metric-status">🔵</span>
+                </summary>
+                <div class="detail-content">
+                    <div class="detail-section">
+                        <h4>📋 診断</h4>
+                        <p>リポジトリの総ファイル数は <strong>{{.TotalFiles}}件</strong>、コントリビューター数は <strong>{{.Contributors}}人</strong> です。1人あたりの負担量の目安になります。</p>
+                    </div>
+                </div>
+            </details>
+
+            <!-- 属人化（コントリビューター分布） -->
+            <details class="metric-detail" data-chart="contributors">
+                <summary>
+                    <span class="metric-name">コントリビューター分布</span>
+                    <span class="metric-value">{{.Contributors}}人</span>
+                    <span class="metric-status">🔵</span>
+                </summary>
+                <div class="detail-content">
+                    <div class="detail-section">
+                        <h4>📋 診断</h4>
+                        <p>コントリビューター数: <strong>{{.Contributors}}人</strong>。多いほど属人化リスクが低く、知識が分散されています。</p>
+                    </div>
+                    <div class="detail-section">
+                        <h4>📊 コントリビューター別コミット数</h4>
+                        <div class="detail-chart"><canvas id="chart-contributors"></canvas></div>
+                    </div>
+                    <div class="detail-section">
+                        <h4>💡 改善提案</h4>
+                        <ul>
+                            <li>ペアプログラミングやコードレビューで知識を分散</li>
+                            <li>ドキュメントを整備して参入障壁を下げる</li>
+                            <li>1人が80%以上のコミット → 属人化リスク</li>
+                        </ul>
+                    </div>
+                </div>
+            </details>
+        </section>
+        </details>
+
+        <!-- トレンド比較セクション -->
+        <details class="section-details">
+        <summary class="section-summary">
+            <span class="cat-icon">📊</span>
+            <span class="summary-name">前期比較トレンド</span>
+        </summary>
+        <section class="section" style="box-shadow:none; margin:0;">
+            <div class="trend-section" id="trend-container"></div>
+        </section>
+        </details>
+
+        <!-- AI Analysis Section -->
+        <!-- このセクションはAI（Claude Code等）がレポートを読み取り、分析コメントを追記する場所です。 -->
+        <!-- 追記ルール: <div id="ai-comments"> の中にHTMLを追記してください。 -->
+        <section class="section" id="ai-analysis">
+            <h2>🤖 AI 分析コメント</h2>
+            <div id="ai-comments">
+                <p style="color: #999; font-style: italic;">まだAI分析は実行されていません。</p>
+            </div>
+            <p style="color: #bbb; font-size: 0.8rem; margin-top: 16px;">このセクションはAIによる自動分析です。内容は参考情報としてご利用ください。</p>
+        </section>
+    </div>
+
+    <footer>
+        <p>Lokup - GitHub リポジトリ健康診断ツール</p>
+    </footer>
+
+    <script>
+        // Drill-down data (injected from Go template)
+        const prDetails = {{.PRDetailsJSON}};
+        const contributorDetails = {{.ContributorDetailsJSON}};
+        const hourlyCommits = {{.HourlyCommitsJSON}};
+        const trendsData = {{.TrendsJSON}};
+        const commitsByDay = [{{range $i, $c := .CommitsByDay}}{{if $i}},{{end}}{{$c}}{{end}}];
+        const commitDayLabels = [{{range $i, $l := .CommitDayLabels}}{{if $i}},{{end}}'{{$l}}'{{end}}];
+
+        // Chart creation functions
+        function createLeadTimeChart(canvas) {
+            const data = prDetails.filter(pr => pr.leadTimeDays >= 0);
+            if (data.length === 0) return;
+            new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: data.map(pr => '#' + pr.number),
+                    datasets: [{
+                        label: 'リードタイム (日)',
+                        data: data.map(pr => pr.leadTimeDays.toFixed(1)),
+                        backgroundColor: data.map(pr =>
+                            pr.leadTimeDays > 7 ? 'rgba(239,68,68,0.7)' :
+                            pr.leadTimeDays > 3 ? 'rgba(234,179,8,0.7)' :
+                            'rgba(34,197,94,0.7)'
+                        ),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true, title: { display: true, text: '日数' } } }
+                }
+            });
+        }
+
+        function createDailyCommitsChart(canvas) {
+            new Chart(canvas, {
+                type: 'line',
+                data: {
+                    labels: commitDayLabels,
+                    datasets: [{
+                        label: 'コミット数',
+                        data: commitsByDay,
+                        borderColor: 'rgb(102, 126, 234)',
+                        backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                        fill: true, tension: 0.3, pointRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
+
+        function createReviewWaitChart(canvas) {
+            const data = prDetails.filter(pr => pr.reviewWaitHours > 0);
+            if (data.length === 0) return;
+            new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: data.map(pr => '#' + pr.number),
+                    datasets: [{
+                        label: 'レビュー待ち (時間)',
+                        data: data.map(pr => pr.reviewWaitHours.toFixed(1)),
+                        backgroundColor: data.map(pr =>
+                            pr.reviewWaitHours > 48 ? 'rgba(239,68,68,0.7)' :
+                            pr.reviewWaitHours > 24 ? 'rgba(234,179,8,0.7)' :
+                            'rgba(34,197,94,0.7)'
+                        ),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true, title: { display: true, text: '時間' } } }
+                }
+            });
+        }
+
+        function createBugFixChart(canvas) {
+            new Chart(canvas, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Feature', 'BugFix', 'Refactor', 'Other'],
+                    datasets: [{
+                        data: [{{.FeaturePRCount}}, {{.BugFixPRCount}}, {{.RefactorPRCount}}, {{.OtherPRCount}}],
+                        backgroundColor: ['rgba(59,130,246,0.8)', 'rgba(239,68,68,0.8)', 'rgba(234,179,8,0.8)', 'rgba(156,163,175,0.8)'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        }
+
+        function createPRSizeChart(canvas) {
+            const data = prDetails.filter(pr => pr.size > 0);
+            if (data.length === 0) return;
+            new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: data.map(pr => '#' + pr.number),
+                    datasets: [{
+                        label: '変更行数',
+                        data: data.map(pr => pr.size),
+                        backgroundColor: data.map(pr =>
+                            pr.size > 500 ? 'rgba(239,68,68,0.7)' :
+                            pr.size > 200 ? 'rgba(234,179,8,0.7)' :
+                            'rgba(34,197,94,0.7)'
+                        ),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true, title: { display: true, text: '行数' } } }
+                }
+            });
+        }
+
+        function createIssueCloseChart(canvas) {
+            new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: ['Issue'],
+                    datasets: [
+                        {
+                            label: '作成',
+                            data: [{{.IssuesCreated}}],
+                            backgroundColor: 'rgba(59,130,246,0.8)',
+                            borderRadius: 4
+                        },
+                        {
+                            label: 'クローズ',
+                            data: [{{.IssuesClosed}}],
+                            backgroundColor: 'rgba(34,197,94,0.8)',
+                            borderRadius: 4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { position: 'bottom' } },
+                    scales: { y: { beginAtZero: true } }
+                }
+            });
+        }
+
+        function createLateNightChart(canvas) {
+            const labels = Array.from({length: 24}, (_, i) => i + '時');
+            const isLateNight = (h) => h >= 22 || h < 5;
+            new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'コミット数',
+                        data: hourlyCommits,
+                        backgroundColor: hourlyCommits.map((_, i) =>
+                            isLateNight(i) ? 'rgba(239,68,68,0.7)' : 'rgba(59,130,246,0.7)'
+                        ),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+        }
+
+        function createContributorsChart(canvas) {
+            if (contributorDetails.length === 0) return;
+            const top10 = contributorDetails.slice(0, 10);
+            new Chart(canvas, {
+                type: 'bar',
+                data: {
+                    labels: top10.map(c => c.name),
+                    datasets: [{
+                        label: 'コミット数',
+                        data: top10.map(c => c.commits),
+                        backgroundColor: top10.map(c =>
+                            c.ratio > 80 ? 'rgba(239,68,68,0.7)' : 'rgba(59,130,246,0.7)'
+                        ),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true } }
+                }
+            });
+        }
+
+        // Chart type mapping
+        const chartCreators = {
+            'leadtime': createLeadTimeChart,
+            'commits': createDailyCommitsChart,
+            'reviewwait': createReviewWaitChart,
+            'bugfix': createBugFixChart,
+            'prsize': createPRSizeChart,
+            'issueclose': createIssueCloseChart,
+            'latenight': createLateNightChart,
+            'contributors': createContributorsChart
+        };
+
+        // Lazy chart initialization on details toggle
+        document.querySelectorAll('details.metric-detail').forEach(el => {
+            el.addEventListener('toggle', () => {
+                if (el.open && !el.dataset.initialized) {
+                    const chartType = el.dataset.chart;
+                    if (chartType && chartCreators[chartType]) {
+                        const canvas = el.querySelector('canvas');
+                        if (canvas) {
+                            chartCreators[chartType](canvas);
+                        }
+                    }
+                    el.dataset.initialized = 'true';
+                }
+            });
+        });
+
+        // Render trend items
+        (function() {
+            const container = document.getElementById('trend-container');
+            if (!container || !trendsData || trendsData.length === 0) {
+                if (container) container.innerHTML = '<p style="color:#999;font-size:0.9rem;">前期データがありません</p>';
+                return;
+            }
+            trendsData.forEach(t => {
+                const arrow = t.direction === 'up' ? '↑' : t.direction === 'down' ? '↓' : '→';
+                const sign = t.deltaPct >= 0 ? '+' : '';
+                const item = document.createElement('div');
+                item.className = 'trend-item';
+                item.innerHTML = `
+                    <span class="trend-arrow ${t.direction}">${arrow}</span>
+                    <span class="trend-name">${t.metricName}</span>
+                    <span class="trend-delta ${t.direction}">${sign}${t.deltaPct.toFixed(1)}%</span>
+                `;
+                container.appendChild(item);
+            });
+        })();
+    </script>
+</body>
+</html>

@@ -107,6 +107,8 @@ func printResult(r *domain.AnalysisResult) {
 		r.Period.To.Format("2006-01-02"),
 		r.Period.Days())
 
+	fmt.Printf("\nOverall:    %d/100 (%s)\n", r.OverallScore.Value, r.OverallScore.Grade())
+
 	fmt.Println("\n--- Category Scores ---")
 	catNames := map[domain.Category]string{
 		domain.CategoryVelocity: "Velocity",
@@ -240,22 +242,59 @@ func parseRepository(s string) (owner, repo string, err error) {
 }
 
 // resolveGitHubToken は GitHub トークンを取得する。
-// 優先順位: GITHUB_TOKEN 環境変数 → gh auth token コマンド → エラー
+// 優先順位: GITHUB_TOKEN 環境変数 → gh auth token → 対話的ログイン
 func resolveGitHubToken() (string, error) {
 	// 1. 環境変数
 	if token := os.Getenv("GITHUB_TOKEN"); token != "" {
 		return token, nil
 	}
 
-	// 2. gh auth token
-	out, err := exec.Command("gh", "auth", "token").Output()
-	if err == nil {
-		token := strings.TrimSpace(string(out))
-		if token != "" {
-			return token, nil
-		}
+	// 2. gh auth token（既にログイン済みの場合）
+	token, err := ghAuthToken()
+	if err == nil && token != "" {
+		return token, nil
 	}
 
-	// 3. 認証なし → エラー
-	return "", errors.New("GitHub authentication required.\n\n  Option 1: gh auth login\n  Option 2: export GITHUB_TOKEN=ghp_xxxxx...")
+	// 3. gh が未インストールの場合
+	if _, err := exec.LookPath("gh"); err != nil {
+		return "", errors.New("GitHub CLI (gh) is required.\n\n  Install: winget install GitHub.cli\n  Or set GITHUB_TOKEN environment variable.")
+	}
+
+	// 4. 対話的にログインを促す
+	fmt.Println("GitHub authentication is required.")
+	fmt.Print("Launch GitHub login? (Y/n): ")
+
+	var answer string
+	fmt.Scanln(&answer)
+	answer = strings.TrimSpace(strings.ToLower(answer))
+	if answer == "n" || answer == "no" {
+		return "", errors.New("GitHub authentication required. Run 'gh auth login' to authenticate.")
+	}
+
+	// gh auth login を対話的に実行
+	cmd := exec.Command("gh", "auth", "login")
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("GitHub login failed: %w", err)
+	}
+
+	// ログイン後にトークンを取得
+	token, err = ghAuthToken()
+	if err != nil || token == "" {
+		return "", errors.New("failed to retrieve token after login")
+	}
+
+	fmt.Println()
+	return token, nil
+}
+
+// ghAuthToken は gh auth token コマンドでトークンを取得する。
+func ghAuthToken() (string, error) {
+	out, err := exec.Command("gh", "auth", "token").Output()
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(out)), nil
 }
