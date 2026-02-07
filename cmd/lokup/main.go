@@ -144,9 +144,10 @@ func printResult(r *domain.AnalysisResult) {
 		fmt.Println("\n--- Trends (vs Previous Period) ---")
 		for _, t := range r.Trends {
 			arrow := "→"
-			if t.Direction == "up" {
+			switch t.Direction {
+			case "up":
 				arrow = "↑"
-			} else if t.Direction == "down" {
+			case "down":
 				arrow = "↓"
 			}
 			fmt.Printf("%s %-16s %+.1f%%\n", arrow, t.MetricName, t.DeltaPct)
@@ -276,7 +277,7 @@ func resolveGitHubToken() (string, error) {
 
 	// 3. gh が未インストールの場合
 	if _, err := exec.LookPath("gh"); err != nil {
-		return "", errors.New("GitHub CLI (gh) is required.\n\n  Install: winget install GitHub.cli\n  Or set GITHUB_TOKEN environment variable.")
+		return "", fmt.Errorf("GitHub CLI (gh) is required\n\n  Install: winget install GitHub.cli\n  Or set GITHUB_TOKEN environment variable")
 	}
 
 	// 4. 対話的にログインを促す
@@ -284,10 +285,10 @@ func resolveGitHubToken() (string, error) {
 	fmt.Print("Launch GitHub login? (Y/n): ")
 
 	var answer string
-	fmt.Scanln(&answer)
+	fmt.Scanln(&answer) //nolint:errcheck // 対話的入力、エラー時はデフォルト動作で問題ない
 	answer = strings.TrimSpace(strings.ToLower(answer))
 	if answer == "n" || answer == "no" {
-		return "", errors.New("GitHub authentication required. Run 'gh auth login' to authenticate.")
+		return "", fmt.Errorf("GitHub authentication required: run 'gh auth login' to authenticate")
 	}
 
 	// gh auth login を対話的に実行

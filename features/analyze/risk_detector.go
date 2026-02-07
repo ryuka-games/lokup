@@ -30,11 +30,11 @@ const (
 	outdatedDepCriticalMonths = 36 // 3年
 
 	// メトリクスベースのリスク閾値
-	leadTimeThresholdDays      = 7.0   // PRリードタイム（日）
-	reviewWaitThresholdHours   = 48.0  // レビュー待ち（時間）
-	prSizeThresholdLines       = 500   // PRサイズ（行）
-	issueCloseRateThresholdPct = 50.0  // Issueクローズ率（%）
-	bugFixRatioThresholdPct    = 50.0  // バグ修正割合（%）
+	leadTimeThresholdDays      = 7.0  // PRリードタイム（日）
+	reviewWaitThresholdHours   = 48.0 // レビュー待ち（時間）
+	prSizeThresholdLines       = 500  // PRサイズ（行）
+	issueCloseRateThresholdPct = 50.0 // Issueクローズ率（%）
+	bugFixRatioThresholdPct    = 50.0 // バグ修正割合（%）
 
 	// DORA メトリクス閾値
 	deployFreqThresholdPerMonth   = 1.0  // 月1回未満でリスク

@@ -56,20 +56,20 @@ type ContributorDetail struct {
 // AnalysisResult は分析結果を表す集約。
 // これが集約ルートであり、診断結果全体を束ねる。
 type AnalysisResult struct {
-	Repository      Repository                // 対象リポジトリ
-	Period          DateRange                 // 分析期間
-	CategoryScores  map[Category]CategoryScore // カテゴリ別スコア
-	OverallScore    Score                     // 総合スコア（カテゴリ平均）
-	Risks           []Risk                    // 検出されたリスク
-	Metrics         Metrics                   // 各種メトリクス
-	DailyCommits    []DailyCommit             // 日別コミット数
-	LargeFiles      []LargeFile               // 巨大ファイル一覧
-	OutdatedDeps    []OutdatedDep             // 古い依存一覧
-	PRDetails       []PRDetail                // PR詳細一覧（ドリルダウン用）
-	ContributorDetails []ContributorDetail     // コントリビューター詳細（ドリルダウン用）
-	HourlyCommits   [24]int                   // 時間帯別コミット数（ドリルダウン用）
-	Trends          []TrendDelta              // 前期比較トレンド
-	GeneratedAt     time.Time                 // レポート生成日時
+	Repository         Repository                 // 対象リポジトリ
+	Period             DateRange                  // 分析期間
+	CategoryScores     map[Category]CategoryScore // カテゴリ別スコア
+	OverallScore       Score                      // 総合スコア（カテゴリ平均）
+	Risks              []Risk                     // 検出されたリスク
+	Metrics            Metrics                    // 各種メトリクス
+	DailyCommits       []DailyCommit              // 日別コミット数
+	LargeFiles         []LargeFile                // 巨大ファイル一覧
+	OutdatedDeps       []OutdatedDep              // 古い依存一覧
+	PRDetails          []PRDetail                 // PR詳細一覧（ドリルダウン用）
+	ContributorDetails []ContributorDetail        // コントリビューター詳細（ドリルダウン用）
+	HourlyCommits      [24]int                    // 時間帯別コミット数（ドリルダウン用）
+	Trends             []TrendDelta               // 前期比較トレンド
+	GeneratedAt        time.Time                  // レポート生成日時
 }
 
 // DailyCommit は1日分のコミット数を表す。
@@ -104,12 +104,12 @@ type Metrics struct {
 	OpenIssueCount      int     // オープンIssue数
 
 	// コード品質メトリクス
-	BugFixRatio      float64 // バグ修正の割合（%）
-	ReworkRate       float64 // 手戻り率（%）
-	AvgPRSize        int     // PRあたりの平均変更行数
-	IssueCloseRate   float64 // Issueクローズ率（%）
-	IssuesCreated    int     // 期間中に作成されたIssue数
-	IssuesClosed     int     // 期間中にクローズされたIssue数
+	BugFixRatio    float64 // バグ修正の割合（%）
+	ReworkRate     float64 // 手戻り率（%）
+	AvgPRSize      int     // PRあたりの平均変更行数
+	IssueCloseRate float64 // Issueクローズ率（%）
+	IssuesCreated  int     // 期間中に作成されたIssue数
+	IssuesClosed   int     // 期間中にクローズされたIssue数
 
 	// PR内訳
 	FeaturePRCount int // feature PRの件数

@@ -44,7 +44,7 @@ func NewService() *Service {
 }
 
 // Generate は分析結果から HTML レポートを生成する。
-func (s *Service) Generate(result *domain.AnalysisResult, outputPath string) error {
+func (s *Service) Generate(result *domain.AnalysisResult, outputPath string) (err error) {
 	// テンプレートデータの準備
 	data := s.prepareTemplateData(result)
 
@@ -59,7 +59,11 @@ func (s *Service) Generate(result *domain.AnalysisResult, outputPath string) err
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if cerr := file.Close(); cerr != nil && err == nil {
+			err = fmt.Errorf("failed to close file: %w", cerr)
+		}
+	}()
 
 	// テンプレート実行
 	if err := tmpl.Execute(file, data); err != nil {
@@ -455,19 +459,19 @@ func (s *Service) marshalTrends(trends []domain.TrendDelta) template.JS {
 // riskTypeToAction はリスクタイプに対する改善提案を返す。
 func riskTypeToAction(rt domain.RiskType) string {
 	actions := map[domain.RiskType]string{
-		domain.RiskTypeChangeConcentration: "このファイルの責務を分割することを検討してください。頻繁な変更はバグの温床になります。",
-		domain.RiskTypeLargeFile:           "ファイルを機能ごとに分割してください。大きなファイルは可読性と保守性を下げます。",
-		domain.RiskTypeOwnership:           "コードレビューやペアプログラミングで知識を共有してください。担当者が離脱するとリスクになります。",
-		domain.RiskTypeOutdatedDeps:        "依存パッケージを更新してください。古いバージョンにはセキュリティ脆弱性がある可能性があります。",
-		domain.RiskTypeLateNight:           "深夜作業が多い原因を調査してください。締め切り圧力やリソース不足の兆候かもしれません。",
-		domain.RiskTypeSlowLeadTime:        "PRを小さく分割し、レビュー担当をローテーションで明確化してください。",
-		domain.RiskTypeSlowReview:          "レビュー時間をカレンダーで確保し、Slackへの通知など見逃さない仕組みを導入してください。",
-		domain.RiskTypeLargePR:             "1つのPRで1つの機能/修正に絞り、リファクタリングと機能追加を分けてください。",
-		domain.RiskTypeLowIssueClose:       "定期的なトリアージミーティングで優先度を整理し、対応しないものは wontfix でクローズしてください。",
-		domain.RiskTypeBugFixHigh:          "テストを充実させてバグを事前に防ぎ、コードレビューの品質を上げてください。",
-		domain.RiskTypeLowDeployFreq:       "CI/CDパイプラインを整備し、小さなリリースを頻繁に行う文化を構築してください。",
-		domain.RiskTypeHighChangeFailure:   "リリース前のテスト自動化とステージング環境での検証を強化してください。",
-		domain.RiskTypeSlowRecovery:        "インシデント対応プロセスを整備し、ロールバック手順を自動化してください。",
+		domain.RiskTypeChangeConcentration:  "このファイルの責務を分割することを検討してください。頻繁な変更はバグの温床になります。",
+		domain.RiskTypeLargeFile:            "ファイルを機能ごとに分割してください。大きなファイルは可読性と保守性を下げます。",
+		domain.RiskTypeOwnership:            "コードレビューやペアプログラミングで知識を共有してください。担当者が離脱するとリスクになります。",
+		domain.RiskTypeOutdatedDeps:         "依存パッケージを更新してください。古いバージョンにはセキュリティ脆弱性がある可能性があります。",
+		domain.RiskTypeLateNight:            "深夜作業が多い原因を調査してください。締め切り圧力やリソース不足の兆候かもしれません。",
+		domain.RiskTypeSlowLeadTime:         "PRを小さく分割し、レビュー担当をローテーションで明確化してください。",
+		domain.RiskTypeSlowReview:           "レビュー時間をカレンダーで確保し、Slackへの通知など見逃さない仕組みを導入してください。",
+		domain.RiskTypeLargePR:              "1つのPRで1つの機能/修正に絞り、リファクタリングと機能追加を分けてください。",
+		domain.RiskTypeLowIssueClose:        "定期的なトリアージミーティングで優先度を整理し、対応しないものは wontfix でクローズしてください。",
+		domain.RiskTypeBugFixHigh:           "テストを充実させてバグを事前に防ぎ、コードレビューの品質を上げてください。",
+		domain.RiskTypeLowDeployFreq:        "CI/CDパイプラインを整備し、小さなリリースを頻繁に行う文化を構築してください。",
+		domain.RiskTypeHighChangeFailure:    "リリース前のテスト自動化とステージング環境での検証を強化してください。",
+		domain.RiskTypeSlowRecovery:         "インシデント対応プロセスを整備し、ロールバック手順を自動化してください。",
 		domain.RiskTypeLowFeatureInvestment: "技術的負債の計画的な返済とともに、機能開発への投資バランスを見直してください。",
 	}
 	if action, ok := actions[rt]; ok {

@@ -144,9 +144,9 @@ func TestDetectLateNightRisk(t *testing.T) {
 func TestDetectLargeFiles(t *testing.T) {
 	s := &Service{}
 	files := []File{
-		{Path: "small.go", Size: 1024},          // 1KB - OK
-		{Path: "medium.go", Size: 60 * 1024},    // 60KB - Medium
-		{Path: "large.go", Size: 120 * 1024},    // 120KB - High
+		{Path: "small.go", Size: 1024},            // 1KB - OK
+		{Path: "medium.go", Size: 60 * 1024},      // 60KB - Medium
+		{Path: "large.go", Size: 120 * 1024},      // 120KB - High
 		{Path: "also-medium.go", Size: 80 * 1024}, // 80KB - Medium
 	}
 
@@ -167,8 +167,8 @@ func TestDetectOutdatedDeps(t *testing.T) {
 	s := &Service{}
 	deps := []Dependency{
 		{Name: "fresh", AgeMonths: 6},
-		{Name: "old", AgeMonths: 26, Version: "1.0.0"},       // 2年以上 → Medium
-		{Name: "ancient", AgeMonths: 40, Version: "0.5.0"},   // 3年以上 → High
+		{Name: "old", AgeMonths: 26, Version: "1.0.0"},     // 2年以上 → Medium
+		{Name: "ancient", AgeMonths: 40, Version: "0.5.0"}, // 3年以上 → High
 	}
 
 	risks, outdatedDeps := s.detectOutdatedDeps(deps)
@@ -300,8 +300,8 @@ func TestCalculateCategoryScores(t *testing.T) {
 
 	t.Run("multiple risks accumulate", func(t *testing.T) {
 		risks := []domain.Risk{
-			{Type: domain.RiskTypeLateNight, Severity: domain.SeverityMedium},   // Health -10
-			{Type: domain.RiskTypeOwnership, Severity: domain.SeverityMedium},   // Health -10
+			{Type: domain.RiskTypeLateNight, Severity: domain.SeverityMedium}, // Health -10
+			{Type: domain.RiskTypeOwnership, Severity: domain.SeverityMedium}, // Health -10
 		}
 		scores := s.calculateCategoryScores(risks)
 		healthScore := scores[domain.CategoryHealth].Score.Value

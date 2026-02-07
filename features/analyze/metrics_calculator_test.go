@@ -103,9 +103,9 @@ func TestCalculateIssueStats(t *testing.T) {
 	closedAt := time.Date(2025, 1, 15, 0, 0, 0, 0, time.UTC)
 	issues := []Issue{
 		{CreatedAt: time.Date(2025, 1, 5, 0, 0, 0, 0, time.UTC), ClosedAt: &closedAt},  // created+closed in period
-		{CreatedAt: time.Date(2025, 1, 10, 0, 0, 0, 0, time.UTC), ClosedAt: nil},        // created, not closed
-		{CreatedAt: time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC), ClosedAt: &closedAt},  // created outside, closed in period
-		{CreatedAt: time.Date(2025, 1, 20, 0, 0, 0, 0, time.UTC), ClosedAt: nil},        // created, not closed
+		{CreatedAt: time.Date(2025, 1, 10, 0, 0, 0, 0, time.UTC), ClosedAt: nil},       // created, not closed
+		{CreatedAt: time.Date(2024, 12, 1, 0, 0, 0, 0, time.UTC), ClosedAt: &closedAt}, // created outside, closed in period
+		{CreatedAt: time.Date(2025, 1, 20, 0, 0, 0, 0, time.UTC), ClosedAt: nil},       // created, not closed
 	}
 
 	st := s.calculateIssueStats(issues, period)

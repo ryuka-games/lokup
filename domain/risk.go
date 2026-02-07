@@ -64,19 +64,19 @@ const (
 // DisplayName はリスク種別の表示名を返す。
 func (r RiskType) DisplayName() string {
 	names := map[RiskType]string{
-		RiskTypeChangeConcentration: "変更集中リスク",
-		RiskTypeLargeFile:           "巨大ファイル",
-		RiskTypeOwnership:           "属人化",
-		RiskTypeOutdatedDeps:        "依存の古さ",
-		RiskTypeLateNight:           "深夜労働",
-		RiskTypeSlowLeadTime:        "PRリードタイム超過",
-		RiskTypeSlowReview:          "レビュー待ち超過",
-		RiskTypeLargePR:             "PRサイズ超過",
-		RiskTypeLowIssueClose:       "Issueクローズ率低下",
-		RiskTypeBugFixHigh:          "バグ修正割合過多",
-		RiskTypeLowDeployFreq:       "デプロイ頻度不足",
-		RiskTypeHighChangeFailure:   "変更失敗率過多",
-		RiskTypeSlowRecovery:        "復旧時間超過",
+		RiskTypeChangeConcentration:  "変更集中リスク",
+		RiskTypeLargeFile:            "巨大ファイル",
+		RiskTypeOwnership:            "属人化",
+		RiskTypeOutdatedDeps:         "依存の古さ",
+		RiskTypeLateNight:            "深夜労働",
+		RiskTypeSlowLeadTime:         "PRリードタイム超過",
+		RiskTypeSlowReview:           "レビュー待ち超過",
+		RiskTypeLargePR:              "PRサイズ超過",
+		RiskTypeLowIssueClose:        "Issueクローズ率低下",
+		RiskTypeBugFixHigh:           "バグ修正割合過多",
+		RiskTypeLowDeployFreq:        "デプロイ頻度不足",
+		RiskTypeHighChangeFailure:    "変更失敗率過多",
+		RiskTypeSlowRecovery:         "復旧時間超過",
 		RiskTypeLowFeatureInvestment: "機能投資不足",
 	}
 	if name, ok := names[r]; ok {

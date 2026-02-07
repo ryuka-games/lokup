@@ -1,0 +1,26 @@
+version: "2"
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+  settings:
+    errcheck:
+      # (*http.Response).Body.Close は慣例的に無視する
+      exclude-functions:
+        - (io.Closer).Close
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+exclusions:
+  rules:
+    # テストファイルのエラーチェックは緩めにする
+    - path: _test\.go
+      linters:
+        - errcheck
