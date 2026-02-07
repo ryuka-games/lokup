@@ -12,15 +12,14 @@ linters:
       # (*http.Response).Body.Close は慣例的に無視する
       exclude-functions:
         - (io.Closer).Close
+  exclusions:
+    rules:
+      # テストファイルのエラーチェックは緩めにする
+      - path: _test\.go
+        linters:
+          - errcheck
 
 formatters:
   enable:
     - gofmt
     - goimports
-
-exclusions:
-  rules:
-    # テストファイルのエラーチェックは緩めにする
-    - path: _test\.go
-      linters:
-        - errcheck
