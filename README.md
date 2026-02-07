@@ -2,6 +2,10 @@
 
 GitHub リポジトリの健康診断ツール。コミット履歴やPR、Issue、リリース情報を分析し、開発チームの状態を可視化します。
 
+## スクリーンショット
+
+<img src="docs/images/report-overview.png" alt="Lokup レポート例（golang/go）" width="800">
+
 ## 特徴
 
 - **総合スコア**: 4カテゴリの平均スコアとグレード（A〜D）で一目でわかる健康状態
@@ -63,6 +67,8 @@ Level 3: カテゴリ詳細（展開式）
 ```
 
 ## AI分析
+
+<img src="docs/images/report-ai-analysis.png" alt="AI分析コメント例" width="800">
 
 生成AIにレポートを読ませて、分析コメントを追記できます。
 

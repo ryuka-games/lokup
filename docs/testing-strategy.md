@@ -188,10 +188,16 @@ TestGenerateReport_WithComparison
 
 ## CI での実行
 
+実際の CI 設定は `.github/workflows/ci.yml` を参照。テストと lint の2ジョブ構成。
+
 ```yaml
-# .github/workflows/test.yml
-name: Test
-on: [push, pull_request]
+# .github/workflows/ci.yml
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -199,8 +205,19 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.22'
-      - run: go test -race -cover ./...
+          go-version-file: go.mod
+      - run: go test ./... -v -count=1
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: v2.8.0
 ```
 
 ---

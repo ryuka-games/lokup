@@ -61,8 +61,7 @@ lokup/
 │       └── main.go            # エントリーポイント
 ├── features/                  # 機能別（Vertical Slice）
 │   ├── analyze/               # リポジトリ分析
-│   ├── report/                # レポート生成
-│   └── compare/               # 期間比較
+│   └── report/                # レポート生成
 ├── domain/                    # ドメインモデル（DDD）
 ├── infrastructure/            # 外部依存（GitHub API, キャッシュ）
 └── shared/                    # 共通ユーティリティ
@@ -206,9 +205,11 @@ func TestCalculateScore(t *testing.T) {
 ### 設計ドキュメント（docs/）
 
 - docs/prd.md — プロダクト要件（コンセプト、ターゲット、診断項目）
-- docs/requirements.md — 機能要件詳細
-- docs/ui-design.md — 画面設計・導線
+- docs/requirements.md — 機能要件詳細（→ metrics.md に統合）
+- docs/ui-design.md — レポート設計・3段階開示
 - docs/testing-strategy.md — テスト戦略
+- docs/architecture.md — アーキテクチャ（認証フロー・分析フロー・ファイル構成）
+- docs/metrics.md — メトリクス仕様（DORA・スコア・リスク検出）
 - docs/adr/ — 技術的な意思決定記録
 
 ### AI向けコンテキスト（.project-context/）
