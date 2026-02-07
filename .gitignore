@@ -25,6 +25,7 @@ go.work.sum
 # OS
 .DS_Store
 Thumbs.db
+nul
 
 # Output files
 report.html
