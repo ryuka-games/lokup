@@ -196,19 +196,20 @@ func parseArgs(args []string) (*Config, error) {
 		fmt.Fprintf(os.Stderr, "  lokup facebook/react --days 90\n")
 	}
 
-	// 引数解析
-	if err := fs.Parse(args); err != nil {
+	// Go の flag パッケージは最初の非フラグ引数で解析を止めるため、
+	// 位置引数（owner/repo）とフラグを分離してからパースする。
+	flagArgs, positionalArgs := splitArgs(args)
+
+	if err := fs.Parse(flagArgs); err != nil {
 		return nil, err
 	}
 
-	// 位置引数（owner/repo）の取得
-	if fs.NArg() < 1 {
+	if len(positionalArgs) < 1 {
 		fs.Usage()
 		return nil, errors.New("repository argument required")
 	}
 
-	repoArg := fs.Arg(0)
-	owner, repo, err := parseRepository(repoArg)
+	owner, repo, err := parseRepository(positionalArgs[0])
 	if err != nil {
 		return nil, err
 	}
@@ -219,6 +220,24 @@ func parseArgs(args []string) (*Config, error) {
 		Output: *output,
 		Days:   *days,
 	}, nil
+}
+
+// splitArgs は引数をフラグ引数と位置引数に分離する。
+// Go の flag パッケージが位置引数の後のフラグを無視する問題を回避する。
+func splitArgs(args []string) (flagArgs, positionalArgs []string) {
+	for i := 0; i < len(args); i++ {
+		if strings.HasPrefix(args[i], "-") {
+			flagArgs = append(flagArgs, args[i])
+			// フラグの値（次の引数）も一緒に取る
+			if i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+				i++
+				flagArgs = append(flagArgs, args[i])
+			}
+		} else {
+			positionalArgs = append(positionalArgs, args[i])
+		}
+	}
+	return
 }
 
 // parseRepository は "owner/repo" 形式の文字列を分解する。
