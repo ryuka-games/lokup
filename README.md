@@ -1,5 +1,7 @@
 # Lokup
 
+[![CI](https://github.com/ryuka-games/lokup/actions/workflows/ci.yml/badge.svg)](https://github.com/ryuka-games/lokup/actions/workflows/ci.yml)
+
 GitHub リポジトリの健康診断ツール。コミット履歴やPR、Issue、リリース情報を分析し、開発チームの状態を可視化します。
 
 ## スクリーンショット
